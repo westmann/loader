@@ -22,13 +22,17 @@ public class Loader {
     static String TWEETID = "tweetid";
     static String SCREEN_NAME = "screen-name";
 
+    static int RECORDS_PER_DOT = 1000;
+    static int DOTS_PER_LINE = 80;
+
     static String[] ID_NAMES = new String[] { ID, MESSAGE_ID, TWEETID, SCREEN_NAME };
     String host = "localhost";
-    String bucket = "default";
+    String bucketname = "default";
+    boolean verbose = false;
 
-    Loader(String host, String bucket) {
+    Loader(String host, String bucketname) {
         this.host = host;
-        this.bucket = bucket;
+        this.bucketname = bucketname;
     }
 
     void load(String filename, long limit) throws IOException {
@@ -38,8 +42,11 @@ public class Loader {
         }
         Cluster cluster = CouchbaseCluster.create(host);
         try {
-            Bucket defaultBucket = cluster.openBucket(bucket);
-            parse(file, limit, defaultBucket);
+            Bucket bucket = cluster.openBucket(bucketname);
+            parse(file, limit, bucket);
+            if (!bucket.close()) {
+                throw new IOException("Could not close " + bucketname);
+            }
         } finally {
             cluster.disconnect();
         }
@@ -58,16 +65,26 @@ public class Loader {
                         String id = (idName == SCREEN_NAME ? obj.getString(idName)
                                 : Long.toString(obj.getLong(idName)));
                         JsonDocument doc = bucket.upsert(JsonDocument.create(id, obj));
-                        System.out.println("Upserted " + doc);
+                        if (verbose) {
+                            System.out.println("Upserted " + doc);
+                        } else {
+                            if (count % RECORDS_PER_DOT == 0) {
+                                System.out.print('.');
+                                if (count % (RECORDS_PER_DOT * DOTS_PER_LINE) == 0) {
+                                    System.out.println();
+                                }
+                            }
+                        }
                     }
                 }
             }
+            System.out.println();
         }
     }
 
     public static void main(String[] args) throws IOException {
         if (args.length == 0) {
-            System.err.println("Parameters: <filename> (<limit> (<bucket> (<host>)?)?)?");
+            System.err.println("Parameters: <filename> (<limit> (<bucketname> (<host>)?)?)?");
             System.exit(1);
         }
         String filename = args[0]; // "/tmp/data/sg/fb_message.adm";

@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<assembly>
+  <id>binary-assembly</id>
+  <formats>
+    <format>zip</format>
+    <format>dir</format>
+  </formats>
+  <includeBaseDirectory>false</includeBaseDirectory>
+  <fileSets>
+    <fileSet>
+      <directory>src/main/resources/scripts</directory>
+      <fileMode>0755</fileMode>
+      <includes>
+        <include>loader.sh</include>
+      </includes>
+      <outputDirectory>bin</outputDirectory>
+    </fileSet>
+    <fileSet>
+      <directory>target</directory>
+      <outputDirectory>lib</outputDirectory>
+      <includes>
+        <include>*.jar</include>
+      </includes>
+    </fileSet>
+  </fileSets>
+  <dependencySets>
+    <dependencySet>
+      <includes>
+        <include>com.couchbase.client:java-client</include>
+        <include>com.couchbase.client:core-io</include>
+        <include>io.reactivex:rxjava</include>
+      </includes>
+      <unpack>false</unpack>
+      <outputDirectory>lib</outputDirectory>
+    </dependencySet>
+  </dependencySets>
+</assembly>

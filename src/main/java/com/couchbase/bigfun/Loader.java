@@ -8,6 +8,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
@@ -17,15 +19,11 @@ import com.couchbase.client.java.document.json.JsonObject;
 
 public class Loader {
 
-    static String ID = "id";
-    static String MESSAGE_ID = "message-id";
-    static String TWEETID = "tweetid";
-    static String SCREEN_NAME = "screen-name";
-
     static int RECORDS_PER_DOT = 1000;
     static int DOTS_PER_LINE = 80;
 
-    static String[] ID_NAMES = new String[] { ID, MESSAGE_ID, TWEETID, SCREEN_NAME };
+    static Set<String> ID_NAMES = new HashSet<>();
+
     String host = "localhost";
     String bucketname = "default";
     boolean verbose = false;
@@ -55,26 +53,29 @@ public class Loader {
     void parse(File file, long limit, Bucket bucket) throws IOException {
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             long count = 0;
-            for (String line; (line = br.readLine()) != null;) {
+            for (String line; (line = br.readLine()) != null; ) {
                 if (++count > limit) {
                     break;
                 }
                 JsonObject obj = JsonObject.fromJson(line);
+                boolean upserted = false;
                 for (String idName : ID_NAMES) {
                     if (obj.containsKey(idName)) {
-                        String id = (idName == SCREEN_NAME ? obj.getString(idName)
-                                : Long.toString(obj.getLong(idName)));
+                        String id = String.valueOf(obj.get(idName));
                         JsonDocument doc = bucket.upsert(JsonDocument.create(id, obj));
+                        upserted = true;
                         if (verbose) {
                             System.out.println("Upserted " + doc);
                         } else {
-                            if (count % RECORDS_PER_DOT == 0) {
-                                System.out.print('.');
-                                if (count % (RECORDS_PER_DOT * DOTS_PER_LINE) == 0) {
-                                    System.out.println();
-                                }
-                            }
+                            progress(count, '.');
                         }
+                    }
+                }
+                if (!upserted) {
+                    if (verbose) {
+                        System.out.println("No key found in " + obj);
+                    } else {
+                        progress(count, '-');
                     }
                 }
             }
@@ -82,15 +83,71 @@ public class Loader {
         }
     }
 
+    private void progress(long count, char c) {
+        if (count % RECORDS_PER_DOT == 0) {
+            System.out.print(c);
+            if (count % (RECORDS_PER_DOT * DOTS_PER_LINE) == 0) {
+                System.out.println();
+            }
+        }
+    }
+
+    private static void usage(String msg) {
+        String usage = msg + "\nParameters: [options] <filename>\n" + "Options:\n"
+                + "  -l <num>    (limit - number of records to load)\n" + "  -b <bucketname> (default: \"default\")\n"
+                + "  -h <host> (default: \"localhost\")\n"
+                + "  -k <fieldname> (key field, can occur more than once, first match is chosen)\n";
+        System.err.println(usage);
+        System.exit(1);
+    }
+
     public static void main(String[] args) throws IOException {
         if (args.length == 0) {
-            System.err.println("Parameters: <filename> (<limit> (<bucketname> (<host>)?)?)?");
-            System.exit(1);
+            usage("no arguments");
         }
-        String filename = args[0]; // "/tmp/data/sg/fb_message.adm";
-        long limit = (args.length > 1 ? Long.valueOf(args[1]) : Long.MAX_VALUE);
-        String bucket = (args.length > 2 ? args[2] : "default");
-        String host = (args.length > 3 ? args[3] : "localhost");
+
+        long limit = Long.MAX_VALUE;
+        String bucket = "default";
+        String host = "localhost";
+        String filename = "";
+
+        int i = 0;
+        while (i < args.length) {
+            String arg = args[i];
+            if (arg.startsWith("-")) {
+                if (i + 1 >= args.length) {
+                    usage("missing value for option " + arg);
+                }
+                switch (arg) {
+                    case "-l":
+                        limit = Long.valueOf(args[++i]);
+                        break;
+                    case "-b":
+                        bucket = args[++i];
+                        break;
+                    case "-h":
+                        host = args[++i];
+                        break;
+                    case "-k":
+                        ID_NAMES.add(args[++i]);
+                        break;
+                    default:
+                        usage("unknown option " + arg);
+                }
+            } else {
+                if (!filename.equals("")) {
+                    usage("more than 1 filename given");
+                }
+                filename = arg;
+            }
+            ++i;
+        }
+        if (ID_NAMES.isEmpty()) {
+            usage("need at least 1 key field");
+        }
+        if (filename.equals("")) {
+            usage("no filename given");
+        }
 
         Loader loader = new Loader(host, bucket);
         loader.load(filename, limit);

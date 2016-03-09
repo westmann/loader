@@ -10,7 +10,10 @@ Run the script without arguments to see the parameters:
     no arguments
     Parameters: [options] <filename>
     Options:
-      -l <num>    (limit - number of records to load)
+      -l <num>        (limit - number of records to load)
       -b <bucketname> (default: "default")
-      -h <host> (default: "localhost")
-      -k <fieldname> (key field, can occur more than once, first match is chosen)
+      -f              (flush bucket before loading)
+      -h <host>       (default: "localhost")
+      -k <fieldname>  (key field, can occur more than once, first match is chosen)
+      -u <username>   (admin user)
+      -p <password>   (admin password)

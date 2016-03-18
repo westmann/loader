@@ -10,6 +10,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
@@ -20,6 +22,9 @@ import com.couchbase.client.java.cluster.BucketSettings;
 import com.couchbase.client.java.cluster.ClusterManager;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.document.json.JsonObject;
+import com.couchbase.client.java.env.CouchbaseEnvironment;
+import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
+import com.couchbase.client.java.error.TemporaryFailureException;
 
 public class Loader {
 
@@ -28,31 +33,37 @@ public class Loader {
 
     static Set<String> ID_NAMES = new HashSet<>();
 
+    CouchbaseEnvironment env;
     String host = "localhost";
     String bucketname = "default";
     boolean verbose = false;
     String username = null;
     String password = null;
+    long timeout;
 
-    Loader(String host, String bucketname, String username, String password) {
+    Loader(String host, String bucketname, String username, String password, boolean verbose) {
+        env = DefaultCouchbaseEnvironment.create();
         this.host = host;
         this.bucketname = bucketname;
+        this.verbose = verbose;
         this.username = username;
         this.password = password;
+        timeout = env.kvTimeout();
     }
 
-    void load(String filename, long limit, boolean flushBeforeLoad) throws IOException {
+    void load(String filename, long limit, boolean flushBeforeLoad) throws IOException, InterruptedException {
         final File file = new File(filename);
         if (!file.exists()) {
             throw new FileNotFoundException(file.getAbsolutePath());
         }
-        Cluster cluster = CouchbaseCluster.create(host);
+        Cluster cluster = CouchbaseCluster.create(env, host);
 
         if (username != null && password != null) {
             createBucket(cluster);
         }
         try {
-            Bucket bucket = password != null ? cluster.openBucket(bucketname, password) : cluster.openBucket(bucketname);
+            Bucket bucket = password != null ? cluster.openBucket(bucketname, password)
+                    : cluster.openBucket(bucketname);
             if (flushBeforeLoad && !bucket.bucketManager().flush()) {
                 throw new IOException("Could not flush " + bucketname);
             }
@@ -122,10 +133,11 @@ public class Loader {
         }
     }
 
-    void parse(File file, long limit, Bucket bucket) throws IOException {
+    void parse(File file, long limit, Bucket bucket) throws IOException, InterruptedException {
+        System.out.println("+++ load start +++");
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             long count = 0;
-            for (String line; (line = br.readLine()) != null; ) {
+            for (String line; (line = br.readLine()) != null;) {
                 if (++count > limit) {
                     break;
                 }
@@ -134,8 +146,10 @@ public class Loader {
                 for (String idName : ID_NAMES) {
                     if (!upserted && obj.containsKey(idName)) {
                         String id = String.valueOf(obj.get(idName));
-                        JsonDocument doc = bucket.upsert(JsonDocument.create(id, obj), PersistTo.MASTER);
-                        upserted = true;
+                        JsonDocument doc = JsonDocument.create(id, obj);
+                        while (!upserted) {
+                            upserted = upsert(bucket, doc);
+                        }
                         if (verbose) {
                             System.out.println("Upserted " + doc);
                         } else {
@@ -152,7 +166,27 @@ public class Loader {
                 }
             }
             System.out.println();
+        } finally {
+            System.out.println("+++ load end +++");
         }
+    }
+
+    private boolean upsert(Bucket bucket, JsonDocument doc) throws InterruptedException {
+        try {
+            bucket.upsert(doc, PersistTo.MASTER, timeout, TimeUnit.MILLISECONDS);
+            return true;
+        } catch (RuntimeException e) {
+            if (e instanceof TemporaryFailureException || e.getCause() instanceof TimeoutException) {
+                System.out.println();
+                System.out.println("+++ caught " + e.toString() + " +++");
+                Thread.sleep(timeout);
+                timeout *= 2;
+                System.out.println("+++ new timeout " + timeout + " +++");
+            } else {
+                throw e;
+            }
+        }
+        return false;
     }
 
     private void progress(long count, char c) {
@@ -170,13 +204,13 @@ public class Loader {
                 + "  -b <bucketname> (default: \"default\")\n" + "  -f              (flush bucket before loading)\n"
                 + "  -h <host>       (default: \"localhost\")\n"
                 + "  -k <fieldname>  (key field, can occur more than once, first match is chosen)\n"
-                + "  -u <username>   (admin user)\n"
-                + "  -p <password>   (admin password)\n";
+                + "  -u <username>   (admin user)\n" + "  -p <password>   (admin password)\n"
+                + "  -v              verbose\n";
         System.err.println(usage);
         System.exit(1);
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         if (args.length == 0) {
             usage("no arguments");
         }
@@ -186,6 +220,7 @@ public class Loader {
         String host = "localhost";
         String filename = "";
         boolean flushBeforeLoad = false;
+        boolean verbose = false;
         String username = null;
         String password = null;
 
@@ -212,6 +247,9 @@ public class Loader {
                     case "-f":
                         flushBeforeLoad = true;
                         break;
+                    case "-v":
+                        verbose = true;
+                        break;
                     case "-u":
                         username = args[++i];
                         break;
@@ -236,7 +274,7 @@ public class Loader {
             usage("no filename given");
         }
 
-        Loader loader = new Loader(host, bucket, username, password);
+        Loader loader = new Loader(host, bucket, username, password, verbose);
         loader.load(filename, limit, flushBeforeLoad);
     }
 }

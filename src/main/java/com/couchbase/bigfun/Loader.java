@@ -51,7 +51,7 @@ public class Loader {
         timeout = env.kvTimeout();
     }
 
-    void load(String filename, long limit, boolean flushBeforeLoad) throws IOException, InterruptedException {
+    void load(String filename, long start, long limit, boolean flushBeforeLoad) throws IOException, InterruptedException {
         final File file = new File(filename);
         if (!file.exists()) {
             throw new FileNotFoundException(file.getAbsolutePath());
@@ -67,7 +67,7 @@ public class Loader {
             if (flushBeforeLoad && !bucket.bucketManager().flush()) {
                 throw new IOException("Could not flush " + bucketname);
             }
-            parse(file, limit, bucket);
+            parse(file, start, limit, bucket);
             if (!bucket.close()) {
                 throw new IOException("Could not close " + bucketname);
             }
@@ -133,11 +133,14 @@ public class Loader {
         }
     }
 
-    void parse(File file, long limit, Bucket bucket) throws IOException, InterruptedException {
+    void parse(File file, long start, long limit, Bucket bucket) throws IOException, InterruptedException {
         System.out.println("+++ load start +++");
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             long count = 0;
             for (String line; (line = br.readLine()) != null;) {
+                if (count++ < start) {
+                    continue;
+                }
                 if (++count > limit) {
                     break;
                 }
@@ -173,14 +176,14 @@ public class Loader {
 
     private boolean upsert(Bucket bucket, JsonDocument doc) throws InterruptedException {
         try {
-            bucket.upsert(doc, PersistTo.MASTER, timeout, TimeUnit.MILLISECONDS);
+            bucket.upsert(doc, PersistTo.NONE, timeout, TimeUnit.MILLISECONDS);
             return true;
         } catch (RuntimeException e) {
             if (e instanceof TemporaryFailureException || e.getCause() instanceof TimeoutException) {
                 System.out.println();
                 System.out.println("+++ caught " + e.toString() + " +++");
                 Thread.sleep(timeout);
-                timeout *= 2;
+                //timeout *= 2;
                 System.out.println("+++ new timeout " + timeout + " +++");
             } else {
                 throw e;
@@ -200,7 +203,8 @@ public class Loader {
 
     private static void usage(String msg) {
         String usage = msg + "\nParameters: [options] <filename>\n" + "Options:\n"
-                + "  -l <num>        (limit - number of records to load)\n"
+                + "  -s <num>        (start - start number of records to load)\n"
+		+ "  -l <num>        (limit - number of records to load)\n"
                 + "  -b <bucketname> (default: \"default\")\n" + "  -f              (flush bucket before loading)\n"
                 + "  -h <host>       (default: \"localhost\")\n"
                 + "  -k <fieldname>  (key field, can occur more than once, first match is chosen)\n"
@@ -216,6 +220,7 @@ public class Loader {
         }
 
         long limit = Long.MAX_VALUE;
+        long start = 0;
         String bucket = "default";
         String host = "localhost";
         String filename = "";
@@ -256,6 +261,9 @@ public class Loader {
                     case "-p":
                         password = args[++i];
                         break;
+                    case "-s":
+                        start = Long.valueOf(args[++i]);
+			break;
                     default:
                         usage("unknown option " + arg);
                 }
@@ -275,6 +283,6 @@ public class Loader {
         }
 
         Loader loader = new Loader(host, bucket, username, password, verbose);
-        loader.load(filename, limit, flushBeforeLoad);
+        loader.load(filename, start, limit, flushBeforeLoad);
     }
 }

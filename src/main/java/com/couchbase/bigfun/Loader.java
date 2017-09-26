@@ -8,8 +8,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -40,18 +42,20 @@ public class Loader {
     String username = null;
     String password = null;
     long timeout;
+    Operation operation = null;
 
-    Loader(String host, String bucketname, String username, String password, boolean verbose) {
-        env = DefaultCouchbaseEnvironment.create();
+    Loader(String host, String bucketname, String username, String password, boolean verbose, Operation op) {
+        this.env = DefaultCouchbaseEnvironment.create();
         this.host = host;
         this.bucketname = bucketname;
         this.verbose = verbose;
         this.username = username;
         this.password = password;
-        timeout = env.kvTimeout();
+        this.timeout = env.kvTimeout();
+        this.operation = op;
     }
 
-    void load(String filename, long start, long limit, boolean flushBeforeLoad) throws IOException, InterruptedException {
+    void load(String filename, long start, long limit, boolean flushBeforeLoad) throws IOException, InterruptedException, ParseException {
         final File file = new File(filename);
         if (!file.exists()) {
             throw new FileNotFoundException(file.getAbsolutePath());
@@ -133,7 +137,7 @@ public class Loader {
         }
     }
 
-    void parse(File file, long start, long limit, Bucket bucket) throws IOException, InterruptedException {
+    void parse(File file, long start, long limit, Bucket bucket) throws IOException, InterruptedException, ParseException {
         System.out.println("+++ load start +++");
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             long count = 0;
@@ -145,22 +149,22 @@ public class Loader {
                     break;
                 }
                 JsonObject obj = JsonObject.fromJson(line);
-                boolean upserted = false;
+                boolean operationdone = false;
                 for (String idName : ID_NAMES) {
-                    if (!upserted && obj.containsKey(idName)) {
+                    if (!operationdone && obj.containsKey(idName)) {
                         String id = String.valueOf(obj.get(idName));
                         JsonDocument doc = JsonDocument.create(id, obj);
-                        while (!upserted) {
-                            upserted = upsert(bucket, doc);
+                        while (!operationdone) {
+                            operationdone = operate(bucket, doc);
                         }
                         if (verbose) {
-                            System.out.println("Upserted " + doc);
+                            System.out.println("Operation done " + doc);
                         } else {
                             progress(count, '.');
                         }
                     }
                 }
-                if (!upserted) {
+                if (!operationdone) {
                     if (verbose) {
                         System.out.println("No key found in " + obj);
                     } else {
@@ -174,22 +178,8 @@ public class Loader {
         }
     }
 
-    private boolean upsert(Bucket bucket, JsonDocument doc) throws InterruptedException {
-        try {
-            bucket.upsert(doc, PersistTo.NONE, timeout, TimeUnit.MILLISECONDS);
-            return true;
-        } catch (RuntimeException e) {
-            if (e instanceof TemporaryFailureException || e.getCause() instanceof TimeoutException) {
-                System.out.println();
-                System.out.println("+++ caught " + e.toString() + " +++");
-                Thread.sleep(timeout);
-                //timeout *= 2;
-                System.out.println("+++ new timeout " + timeout + " +++");
-            } else {
-                throw e;
-            }
-        }
-        return false;
+    private boolean operate(Bucket bucket, JsonDocument doc) throws InterruptedException, ParseException {
+        return this.operation.operate(bucket, doc, timeout);
     }
 
     private void progress(long count, char c) {
@@ -205,16 +195,22 @@ public class Loader {
         String usage = msg + "\nParameters: [options] <filename>\n" + "Options:\n"
                 + "  -s <num>        (start - start number of records to load)\n"
 		+ "  -l <num>        (limit - number of records to load)\n"
-                + "  -b <bucketname> (default: \"default\")\n" + "  -f              (flush bucket before loading)\n"
+                + "  -b <bucketname> (default: \"default\")\n" 
+                + "  -f              (flush bucket before loading)\n"
                 + "  -h <host>       (default: \"localhost\")\n"
                 + "  -k <fieldname>  (key field, can occur more than once, first match is chosen)\n"
-                + "  -u <username>   (admin user)\n" + "  -p <password>   (admin password)\n"
-                + "  -v              verbose\n";
+                + "  -u <username>   (admin user)\n" 
+                + "  -p <password>   (admin password)\n"
+                + "  -v              (verbose)\n"
+                + "  -d              (delete documents)\n"
+                + "  -m <fieldname>:<type>:<start>:<end> (update field with random value of type from start to end)\n"
+                + "  -m <fieldname>:<type>:<value list file> (update field with random value of type from a value list file)\n";
+
         System.err.println(usage);
         System.exit(1);
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws IOException, InterruptedException, ParseException {
         if (args.length == 0) {
             usage("no arguments");
         }
@@ -228,6 +224,7 @@ public class Loader {
         boolean verbose = false;
         String username = null;
         String password = null;
+        Operation op = new Operation("insert", null);
 
         int i = 0;
         while (i < args.length) {
@@ -263,7 +260,13 @@ public class Loader {
                         break;
                     case "-s":
                         start = Long.valueOf(args[++i]);
-			break;
+			            break;
+                    case "-d":
+                        op = new Operation("delete", null);
+                        break;
+                    case "-m":
+                        op = new Operation("update", args[++i]);
+                        break;
                     default:
                         usage("unknown option " + arg);
                 }
@@ -282,7 +285,7 @@ public class Loader {
             usage("no filename given");
         }
 
-        Loader loader = new Loader(host, bucket, username, password, verbose);
+        Loader loader = new Loader(host, bucket, username, password, verbose, op);
         loader.load(filename, start, limit, flushBeforeLoad);
     }
 }

@@ -61,7 +61,7 @@ public class Operation {
             case "i": {
                 Long s = Long.parseLong(this.updatevaluestart);
                 Long e = Long.parseLong(this.updatevalueend);
-                Long v = s + (long) random.nextDouble() * (e - s);
+                Long v = s + (long) (random.nextDouble() * (e - s));
                 doc.content().put(this.updatefieldname, v);
                 break;
             }
@@ -76,7 +76,7 @@ public class Operation {
                 SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
                 Long s = formatter.parse(this.updatevaluestart).getTime();
                 Long e = formatter.parse(this.updatevalueend).getTime();
-                Long msv = s + (long) random.nextDouble() * (e - s);
+                Long msv = s + (long) (random.nextDouble() * (e - s));
                 String v = formatter.format(new Date(msv));
                 doc.content().put(this.updatefieldname, v);
                 break;
@@ -85,7 +85,7 @@ public class Operation {
                 SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-ddTHH:mm:ss");
                 Long s = formatter.parse(this.updatevaluestart).getTime();
                 Long e = formatter.parse(this.updatevalueend).getTime();
-                Long msv = s + (long) random.nextDouble() * (e - s);
+                Long msv = s + (long) (random.nextDouble() * (e - s));
                 String v = formatter.format(new Date(msv));
                 doc.content().put(this.updatefieldname, v);
                 break;

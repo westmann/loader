@@ -102,7 +102,7 @@ public class Operation {
     Operation(String _operation, String _operationparams) throws FileNotFoundException, IOException {
         this.operation = _operation;
         if (this.operation == "update") {
-            String[] parts = _operationparams.split(":");
+            String[] parts = _operationparams.split("#");
             if (parts.length >= 3) {
                 updatefieldname = parts[0];
                 updatevaluetype = parts[1];

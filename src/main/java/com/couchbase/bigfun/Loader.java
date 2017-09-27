@@ -288,6 +288,7 @@ public class Loader extends Thread {
                         break;
                     case "-t":
                         op = new Operation("ttl", args[++i]);
+                        break;
                     default:
                         usage("unknown option " + arg);
                 }

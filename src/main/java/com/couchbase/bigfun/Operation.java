@@ -50,7 +50,7 @@ public class Operation {
                 int e = Integer.parseInt(this.ttlend);
                 int v = s + (int) (random.nextDouble() * (e - s));
                 JsonDocument newdoc = JsonDocument.create(doc.id(), v, doc.content());
-                bucket.upsert(doc, PersistTo.NONE, timeout, TimeUnit.MILLISECONDS);
+                bucket.upsert(newdoc, PersistTo.NONE, timeout, TimeUnit.MILLISECONDS);
             }
             return true;
         } catch (RuntimeException e) {

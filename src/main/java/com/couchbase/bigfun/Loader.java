@@ -155,7 +155,7 @@ public class Loader extends Thread {
                 if (count++ < start) {
                     continue;
                 }
-                if (++count > limit) {
+                if (count > limit) {
                     break;
                 }
                 JsonObject obj = JsonObject.fromJson(line);

@@ -122,11 +122,13 @@ public class Operation {
     Operation(String _operation, String _operationparams) throws FileNotFoundException, IOException {
         this.operation = _operation;
         if (this.operation == "update") {
-            System.out.println(_operationparams);
             String[] parts = _operationparams.split("#");
             if (parts.length >= 3) {
                 updatefieldname = parts[0];
                 updatevaluetype = parts[1];
+                System.out.println(parts[0]);
+                System.out.println(parts[1]);
+                System.out.println(parts[2]);
                 if (updatevaluetype == "s") {
                     if (parts.length == 3) {
                         String filename = parts[2];

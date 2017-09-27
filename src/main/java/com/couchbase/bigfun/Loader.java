@@ -28,7 +28,7 @@ import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
 import com.couchbase.client.java.error.TemporaryFailureException;
 
-public class Loader {
+public class Loader extends Thread {
 
     static int RECORDS_PER_DOT = 1000;
     static int DOTS_PER_LINE = 80;
@@ -36,6 +36,10 @@ public class Loader {
     static Set<String> ID_NAMES = new HashSet<>();
 
     CouchbaseEnvironment env;
+    String filename;
+    long start;
+    long limit;
+    boolean flushBeforeLoad;
     String host = "localhost";
     String bucketname = "default";
     boolean verbose = false;
@@ -44,8 +48,12 @@ public class Loader {
     long timeout;
     Operation operation = null;
 
-    Loader(String host, String bucketname, String username, String password, boolean verbose, Operation op) {
+    Loader(String filename, long start, long limit, boolean flushBeforeLoad, String host, String bucketname, String username, String password, boolean verbose, Operation op) {
         this.env = DefaultCouchbaseEnvironment.create();
+        this.filename = filename;
+        this.start = start;
+        this.limit = limit;
+        this.flushBeforeLoad = flushBeforeLoad;
         this.host = host;
         this.bucketname = bucketname;
         this.verbose = verbose;
@@ -55,7 +63,8 @@ public class Loader {
         this.operation = op;
     }
 
-    void load(String filename, long start, long limit, boolean flushBeforeLoad) throws IOException, InterruptedException, ParseException {
+    void load() throws IOException, InterruptedException, ParseException {
+        System.out.println("Starting loading " + filename + " to " + host + "/" + bucketname);
         final File file = new File(filename);
         if (!file.exists()) {
             throw new FileNotFoundException(file.getAbsolutePath());
@@ -78,6 +87,7 @@ public class Loader {
         } finally {
             cluster.disconnect();
         }
+        System.out.println("Finished loading " + filename + " to " + host + "/" + bucketname);
     }
 
     private void createBucket(Cluster cluster) {
@@ -210,6 +220,15 @@ public class Loader {
         System.exit(1);
     }
 
+    public void run() {
+        try {
+            this.load();
+        }
+        catch (Exception e) {
+            System.err.println(e.toString());
+        }
+    }
+
     public static void main(String[] args) throws IOException, InterruptedException, ParseException {
         if (args.length == 0) {
             usage("no arguments");
@@ -219,7 +238,7 @@ public class Loader {
         long start = 0;
         String bucket = "default";
         String host = "localhost";
-        String filename = "";
+        ArrayList<String> files = new ArrayList<String>();
         boolean flushBeforeLoad = false;
         boolean verbose = false;
         String username = null;
@@ -271,21 +290,35 @@ public class Loader {
                         usage("unknown option " + arg);
                 }
             } else {
-                if (!filename.equals("")) {
-                    usage("more than 1 filename given");
+                File folder = new File(arg);
+                File[] listOfFiles = folder.listFiles();
+                for (int j = 0; j < listOfFiles.length; j++) {
+                    if (listOfFiles[j].isFile()) {
+                        files.add(listOfFiles[j].getAbsolutePath());
+                    }
                 }
-                filename = arg;
             }
             ++i;
         }
+
         if (ID_NAMES.isEmpty()) {
             usage("need at least 1 key field");
         }
-        if (filename.equals("")) {
+
+        if (files.size() == 0) {
             usage("no filename given");
         }
 
-        Loader loader = new Loader(host, bucket, username, password, verbose, op);
-        loader.load(filename, start, limit, flushBeforeLoad);
+        ArrayList<Loader> loaders = new ArrayList<Loader>();
+        for (int j = 0; j < files.size(); j++) {
+            String filename = files.get(j);
+            Loader loader = new Loader(filename, start, limit, flushBeforeLoad, host, bucket, username, password, verbose, op);
+            loader.start();
+            loaders.add(loader);
+        }
+        for (int j = 0; j < loaders.size(); j++) {
+            Loader loader = loaders.get(j);
+            loader.join();
+        }
     }
 }

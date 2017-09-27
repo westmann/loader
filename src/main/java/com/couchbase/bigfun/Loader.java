@@ -290,12 +290,10 @@ public class Loader extends Thread {
                         usage("unknown option " + arg);
                 }
             } else {
-                File folder = new File(arg);
-                File[] listOfFiles = folder.listFiles();
-                for (int j = 0; j < listOfFiles.length; j++) {
-                    if (listOfFiles[j].isFile()) {
-                        files.add(listOfFiles[j].getAbsolutePath());
-                    }
+                File file = new File(arg);
+                if (file.exists() && file.isFile())
+                {
+                    files.add(file.getAbsolutePath());
                 }
             }
             ++i;

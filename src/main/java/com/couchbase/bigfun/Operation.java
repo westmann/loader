@@ -82,7 +82,7 @@ public class Operation {
                 break;
             }
             case "t": {
-                SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-ddTHH:mm:ss");
+                SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
                 Long s = formatter.parse(this.updatevaluestart).getTime();
                 Long e = formatter.parse(this.updatevalueend).getTime();
                 Long msv = s + (long) (random.nextDouble() * (e - s));

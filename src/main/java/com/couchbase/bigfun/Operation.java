@@ -128,7 +128,7 @@ public class Operation {
                 updatevaluetype = parts[1];
                 System.out.println(parts[0]);
                 System.out.println(parts[1]);
-                System.out.println(parts[2]);
+                System.out.println(updatevaluetype);
                 if (updatevaluetype == "s") {
                     if (parts.length == 3) {
                         String filename = parts[2];

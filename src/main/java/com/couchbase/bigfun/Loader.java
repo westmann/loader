@@ -286,6 +286,8 @@ public class Loader extends Thread {
                     case "-m":
                         op = new Operation("update", args[++i]);
                         break;
+                    case "-t":
+                        op = new Operation("ttl", args[++i]);
                     default:
                         usage("unknown option " + arg);
                 }

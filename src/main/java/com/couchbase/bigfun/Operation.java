@@ -26,9 +26,13 @@ public class Operation {
 
     String updatefieldname;
     String updatevaluetype;
+    String updatevalueformat = null;
     ArrayList<String> updatevalues = new ArrayList<String>();
     String updatevaluestart;
     String updatevalueend;
+
+    String ttlstart;
+    String ttlend;
     Random random = new Random();
 
     boolean operate(Bucket bucket, JsonDocument doc, long timeout) throws InterruptedException, ParseException {
@@ -39,6 +43,13 @@ public class Operation {
                 bucket.remove(doc, PersistTo.NONE, timeout, TimeUnit.MILLISECONDS);
             else if (this.operation == "update") {
                 this.generateUpdateValue(doc);
+                bucket.upsert(doc, PersistTo.NONE, timeout, TimeUnit.MILLISECONDS);
+            }
+            else if (this.operation == "ttl") {
+                int s = Integer.parseInt(this.ttlstart);
+                int e = Integer.parseInt(this.ttlend);
+                int v = s + (int) (random.nextDouble() * (e - s));
+                JsonDocument newdoc = JsonDocument.create(doc.id(), v, doc.content());
                 bucket.upsert(doc, PersistTo.NONE, timeout, TimeUnit.MILLISECONDS);
             }
             return true;
@@ -91,9 +102,18 @@ public class Operation {
                 break;
             }
             case "s": {
-                int vidx = random.nextInt(this.updatevalues.size());
-                String v = this.updatevalues.get(vidx);
-                doc.content().put(this.updatefieldname, v);
+                if (updatevalueformat != null) {
+                    Long s = Long.parseLong(this.updatevaluestart);
+                    Long e = Long.parseLong(this.updatevalueend);
+                    Long v = s + (long) (random.nextDouble() * (e - s));
+                    String sv = String.format(this.updatevalueformat, v);
+                    doc.content().put(this.updatefieldname, sv);
+                }
+                else if (this.updatevalues.size() > 0) {
+                    int vidx = random.nextInt(this.updatevalues.size());
+                    String v = this.updatevalues.get(vidx);
+                    doc.content().put(this.updatefieldname, v);
+                }
                 break;
             }
         }
@@ -106,20 +126,34 @@ public class Operation {
             if (parts.length >= 3) {
                 updatefieldname = parts[0];
                 updatevaluetype = parts[1];
-                if (parts.length == 3) {
-                    String filename = parts[2];
-                    final File file = new File(filename);
-                    if (!file.exists()) {
-                        throw new FileNotFoundException(file.getAbsolutePath());
+                if (updatevaluetype == "s") {
+                    if (parts.length == 3) {
+                        String filename = parts[2];
+                        final File file = new File(filename);
+                        if (!file.exists()) {
+                            throw new FileNotFoundException(file.getAbsolutePath());
+                        }
+                        BufferedReader br = new BufferedReader(new FileReader(file));
+                        for (String line; (line = br.readLine()) != null; ) {
+                            updatevalues.add(line);
+                        }
                     }
-                    BufferedReader br = new BufferedReader(new FileReader(file));
-                    for (String line; (line = br.readLine()) != null; ) {
-                        updatevalues.add(line);
+                    if (parts.length == 5) {
+                        updatevalueformat = parts[2];
+                        updatevaluestart = parts[3];
+                        updatevalueend = parts[4];
                     }
                 } else {
                     updatevaluestart = parts[2];
                     updatevalueend = parts[3];
                 }
+            }
+        }
+        else if (this.operation == "ttl") {
+            String[] parts = _operationparams.split("#");
+            if (parts.length >= 2) {
+                ttlstart = parts[0];
+                ttlend = parts[1];
             }
         }
     }

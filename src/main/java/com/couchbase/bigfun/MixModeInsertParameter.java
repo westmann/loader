@@ -1,8 +1,8 @@
 package com.couchbase.bigfun;
 
-public class InsertParameter {
+public class MixModeInsertParameter {
     public long insertIdStart;
-    public InsertParameter(long insertIdStart)
+    public MixModeInsertParameter(long insertIdStart)
     {
         this.insertIdStart = insertIdStart;
     }
@@ -11,10 +11,10 @@ public class InsertParameter {
         if (o == this) {
             return true;
         }
-        if (!(o instanceof InsertParameter)) {
+        if (!(o instanceof MixModeInsertParameter)) {
             return false;
         }
-        InsertParameter c = (InsertParameter) o;
+        MixModeInsertParameter c = (MixModeInsertParameter) o;
         return insertIdStart == c.insertIdStart;
     }
 }

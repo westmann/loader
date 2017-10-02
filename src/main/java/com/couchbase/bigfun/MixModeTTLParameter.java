@@ -1,9 +1,9 @@
 package com.couchbase.bigfun;
 
-public class TTLParameter {
+public class MixModeTTLParameter {
     public int expiryStart;
     public int expiryEnd;
-    public TTLParameter(int expiryStart, int expiryEnd)
+    public MixModeTTLParameter(int expiryStart, int expiryEnd)
     {
         this.expiryStart = expiryStart;
         this.expiryEnd = expiryEnd;
@@ -13,10 +13,10 @@ public class TTLParameter {
         if (o == this) {
             return true;
         }
-        if (!(o instanceof TTLParameter)) {
+        if (!(o instanceof MixModeTTLParameter)) {
             return false;
         }
-        TTLParameter c = (TTLParameter) o;
+        MixModeTTLParameter c = (MixModeTTLParameter) o;
         return expiryStart == c.expiryStart &&
                 expiryEnd == c.expiryEnd;
     }

@@ -25,7 +25,5 @@ public class TargetInfo {
         bucket.equals(c.bucket) &&
         username.equals(c.username) &&
         password.equals(c.password);
-
-
     }
 }

@@ -1,8 +1,8 @@
 package com.couchbase.bigfun;
 
-public class DeleteParameter {
+public class MixModeDeleteParameter {
     public long maxDeleteIds;
-    public DeleteParameter(long maxDeleteIds)
+    public MixModeDeleteParameter(long maxDeleteIds)
     {
         this.maxDeleteIds = maxDeleteIds;
     }
@@ -11,10 +11,10 @@ public class DeleteParameter {
         if (o == this) {
             return true;
         }
-        if (!(o instanceof DeleteParameter)) {
+        if (!(o instanceof MixModeDeleteParameter)) {
             return false;
         }
-        DeleteParameter c = (DeleteParameter) o;
+        MixModeDeleteParameter c = (MixModeDeleteParameter) o;
         return maxDeleteIds == c.maxDeleteIds;
     }
 }

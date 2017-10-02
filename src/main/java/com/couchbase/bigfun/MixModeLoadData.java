@@ -11,13 +11,15 @@ import java.io.BufferedReader;
 
 import java.util.HashSet;
 
-public class PartitionLoadData {
+import java.util.regex.Pattern;
 
-    private DataInfo dataInfo;
+import java.util.regex.Matcher;
 
-    private InsertParameter insertParam;
-    private DeleteParameter delParam;
-    private TTLParameter ttlParameter;
+public class MixModeLoadData extends LoadData {
+
+    private MixModeInsertParameter insertParam;
+    private MixModeDeleteParameter delParam;
+    private MixModeTTLParameter ttlParameter;
 
     private long operationIdStart;
     private long operationIdEnd;
@@ -71,24 +73,28 @@ public class PartitionLoadData {
         return this.templateDocuments[docIdx];
     }
 
+    @Override
     public JsonDocument GetNextDocumentForUpdate() {
         String keyToUpdate = getRandomNonRemovedKey();
         JsonDocument docTemplate = getRandomDocumentTemplate();
         return JsonDocument.create(keyToUpdate, docTemplate.content());
     }
 
+    @Override
     public JsonDocument GetNextDocumentForDelete() {
         String keyToDelete = getRandomKeyToRemove();
         JsonDocument docTemplate = getRandomDocumentTemplate();
         return JsonDocument.create(keyToDelete, docTemplate.content());
     }
 
+    @Override
     public JsonDocument GetNextDocumentForInsert() {
         String keyToInsert = getRandomKeyToInsert();
         JsonDocument docTemplate = getRandomDocumentTemplate();
         return JsonDocument.create(keyToInsert, docTemplate.content());
     }
 
+    @Override
     public JsonDocument GetNextDocumentTTL() {
         String keyToTTL = getRandomKeyToRemove();
         JsonDocument docTemplate = getRandomDocumentTemplate();
@@ -96,9 +102,9 @@ public class PartitionLoadData {
         return JsonDocument.create(keyToTTL, expiry, docTemplate.content());
     }
 
-    public PartitionLoadData(DataInfo dataInfo, InsertParameter insertParam,
-                             DeleteParameter delParam, TTLParameter ttlParameter) {
-        this.dataInfo = dataInfo;
+    public MixModeLoadData(DataInfo dataInfo, MixModeInsertParameter insertParam,
+                           MixModeDeleteParameter delParam, MixModeTTLParameter ttlParameter) {
+        super(dataInfo);
         this.insertParam = insertParam;
         this.delParam = delParam;
         this.ttlParameter = ttlParameter;
@@ -108,11 +114,25 @@ public class PartitionLoadData {
 
         this.deletedDocNumberThreshold = this.delParam.maxDeleteIds;
 
+        this.expiryStart = this.ttlParameter.expiryStart;
+        this.expiryEnd = this.ttlParameter.expiryEnd;
+
         try {
             BufferedReader br = new BufferedReader(new FileReader(this.dataInfo.metaFilePath));
             String line = br.readLine();
-            this.operationIdStart = 0;
-            this.operationIdEnd = 0;
+            String patternString = "IDRange=([0-9]+):([0-9]+)";
+            Pattern pattern = Pattern.compile(patternString);
+            Matcher matcher = pattern.matcher(line);
+            String idStartString = null;
+            String idEndString = null;
+            while(matcher.find()) {
+                idStartString = matcher.group(1);
+                idEndString = matcher.group(2);
+            }
+            if (idStartString == null || idEndString == null)
+                throw new IllegalArgumentException("Invalid meta file content");
+            this.operationIdStart = Long.valueOf(idStartString);
+            this.operationIdEnd = Long.valueOf(idEndString);
         }
         catch (IOException e)
         {
@@ -120,9 +140,9 @@ public class PartitionLoadData {
         }
 
         try {
-            this.templateDocuments = new JsonDocument[dataInfo.docsReadInMem];
+            this.templateDocuments = new JsonDocument[dataInfo.docsToLoad];
             BufferedReader br = new BufferedReader(new FileReader(this.dataInfo.dataFilePath));
-            for (int i = 0; i < this.dataInfo.docsReadInMem; i++) {
+            for (int i = 0; i < this.dataInfo.docsToLoad; i++) {
                 String line = br.readLine();
                 if (line == null)
                     break;

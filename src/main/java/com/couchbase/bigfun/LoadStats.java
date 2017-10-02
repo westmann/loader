@@ -1,6 +1,6 @@
 package com.couchbase.bigfun;
 
-public class PartitionLoadStats {
+public class LoadStats {
     public long insertNumber = 0;
     public long deleteNumber = 0;
     public long updateNumber = 0;
@@ -10,10 +10,10 @@ public class PartitionLoadStats {
         if (o == this) {
             return true;
         }
-        if (!(o instanceof PartitionLoadStats)) {
+        if (!(o instanceof LoadStats)) {
             return false;
         }
-        PartitionLoadStats c = (PartitionLoadStats) o;
+        LoadStats c = (LoadStats) o;
         return (insertNumber == c.insertNumber) &&
                 (deleteNumber == c.deleteNumber) &&
                 (updateNumber == c.updateNumber) &&

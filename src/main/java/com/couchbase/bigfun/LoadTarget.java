@@ -14,7 +14,7 @@ import java.util.concurrent.TimeoutException;
 import java.lang.Thread;
 import java.util.function.Consumer;
 
-public class PartitionLoadTarget {
+public class LoadTarget {
 
     private TargetInfo targetInfo;
     private CouchbaseEnvironment env;
@@ -22,7 +22,7 @@ public class PartitionLoadTarget {
     private Bucket bucket;
     private long timeout;
 
-    public PartitionLoadTarget(TargetInfo targetInfo) {
+    public LoadTarget(TargetInfo targetInfo) {
         this.targetInfo = targetInfo;
         this.env = DefaultCouchbaseEnvironment.create();
         this.timeout = env.kvTimeout();

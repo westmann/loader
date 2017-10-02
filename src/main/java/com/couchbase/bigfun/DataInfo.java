@@ -4,13 +4,13 @@ public class DataInfo {
     public String dataFilePath;
     public String metaFilePath;
     public String keyFieldName;
-    public int docsReadInMem;
+    public int docsToLoad;
 
-    public DataInfo(String dataFilePath, String metaFilePath, String keyFieldName, int docsReadInMem){
+    public DataInfo(String dataFilePath, String metaFilePath, String keyFieldName, int docsToLoad){
         this.dataFilePath = dataFilePath;
         this.metaFilePath = metaFilePath;
         this.keyFieldName = keyFieldName;
-        this.docsReadInMem = docsReadInMem;
+        this.docsToLoad = docsToLoad;
     }
     @Override
     public boolean equals(Object o) {
@@ -24,6 +24,6 @@ public class DataInfo {
         return dataFilePath.equals(c.dataFilePath) &&
                 metaFilePath.equals(c.metaFilePath) &&
                 keyFieldName.equals(c.keyFieldName) &&
-                (docsReadInMem == c.docsReadInMem);
+                (docsToLoad == c.docsToLoad);
     }
 }

@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.lang.*;
 import java.util.Date;
 
-public class Loader<DATAT, PARAMT> extends Thread {
+public class Loader<PARAMT, DATAT> extends Thread {
 
         public static final String INSERT_OPERATION = "insert";
         public static final String DELETE_OPERATION = "delete";
@@ -150,10 +150,20 @@ public class Loader<DATAT, PARAMT> extends Thread {
             return result;
         }
 
-        public Loader(LoadParameter parameter, LoadData data) {
+        protected Loader(LoadParameter parameter, LoadData data, LoadTarget loadTarget) {
+            super();
             this.parameter = parameter;
             this.data = data;
-            this.target = new LoadTarget(this.parameter.targetInfo);
+            if (loadTarget == null)
+                this.target = new LoadTarget(this.parameter.targetInfo);
+            else
+                this.target = loadTarget;
+            this.successStats = new LoadStats();
+            this.failedStat = new LoadStats();
+        }
+
+        public Loader(LoadParameter parameter, LoadData data) {
+            this(parameter, data, null);
         }
     }
 

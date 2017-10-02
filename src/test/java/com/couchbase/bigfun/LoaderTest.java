@@ -9,6 +9,7 @@ import junit.framework.TestSuite;
 
 import com.google.gson.Gson;
 
+import java.lang.annotation.Target;
 import java.util.Date;
 
 import java.io.FileWriter;
@@ -302,7 +303,8 @@ public class LoaderTest
         }
     }
 
-    public void testLoadTarget()
+    // Env specific test, disabled by default remove "_" in method to enable
+    public void _testLoadTarget()
     {
         TargetInfo targetinfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password");
         LoadTarget target = new LoadTarget(targetinfo);
@@ -314,7 +316,8 @@ public class LoaderTest
         target.close();
     }
 
-    public void testLoadTargetRetry() {
+    // Env specific test, disabled by default remove "_" in method to enable
+    public void _testLoadTargetRetry() {
         TargetInfo targetinfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password");
         String key = "1";
         String docJson = "{\"id\" : \"1\", \"updatefieldname\" : \"2000-01-02\", \"field2\" : \"abcd\"}";
@@ -337,5 +340,175 @@ public class LoaderTest
             }
             target.close();
         }
+    }
+
+    private class LoadParameterTest extends LoadParameter {
+        public int updateNum;
+        public int deleteNum;
+        public int insertNum;
+        public int ttlNum;
+        public LoadParameterTest(DataInfo dataInfo, TargetInfo targetInfo,
+                                 int updateNum, int deleteNum,
+                                 int insertNum, int ttlNum) {
+            super(dataInfo, targetInfo);
+            this.updateNum = updateNum;
+            this.deleteNum = deleteNum;
+            this.insertNum = insertNum;
+            this.ttlNum = ttlNum;
+        }
+    }
+
+    private class LoadDataTest extends LoadData {
+        public LoadParameterTest loadParameter;
+        public int updateCnt = 0;
+        public int deleteCnt = 0;
+        public int insertCnt = 0;
+        public int ttlCnt = 0;
+        private final JsonDocument doc;
+        @Override
+        public JsonDocument GetNextDocumentForUpdate() {
+            if (updateCnt ++ >= loadParameter.updateNum)
+                return null;
+            else
+                return doc;
+        }
+        @Override
+        public JsonDocument GetNextDocumentForDelete() {
+            if (deleteCnt ++ >= loadParameter.deleteNum)
+                return null;
+            else
+                return doc;
+        }
+        @Override
+        public JsonDocument GetNextDocumentForInsert() {
+            if (insertCnt ++ >= loadParameter.insertNum)
+                return null;
+            else
+                return doc;
+        }
+        @Override
+        public JsonDocument GetNextDocumentTTL() {
+            if (ttlCnt ++ >= loadParameter.ttlNum)
+                return null;
+            else
+                return doc;
+        }
+        public LoadDataTest(DataInfo dataInfo, LoadParameterTest loadParameter) {
+            super(dataInfo);
+            this.loadParameter = loadParameter;
+            doc = JsonDocument.create("1", JsonObject.fromJson("{\"id\" : \"1\"}"));
+        }
+    }
+
+    private class LoadTargetTest extends LoadTarget
+    {
+        public int upsertCnt = 0;
+        public int deleteCnt = 0;
+        @Override
+        protected void upsertWithoutRetry(JsonDocument doc) {
+            upsertCnt++;
+            if (upsertCnt == 1)
+                throw new TemporaryFailureException("test loader");
+            return;
+        }
+
+        @Override
+        protected void deleteWithoutRetry(JsonDocument doc) {
+            deleteCnt++;
+            if (deleteCnt == 1)
+                throw new RuntimeException("test loader");
+            return;
+        }
+
+        public LoadTargetTest(TargetInfo targetInfo) {
+            super(targetInfo);
+            this.timeout = this.timeout / 2;
+        }
+    }
+
+    private class LoaderTestClass extends Loader<LoadParameterTest, LoadDataTest> {
+        public LoadDataTest getDataForTest() {return getData();}
+        public LoadParameterTest getParameterForTest() {return getParameter();}
+        @Override
+        protected void load() {
+            while (true) {
+                try {
+                    if (!operate("insert"))
+                        break;
+                } catch (Exception e) {
+                    System.err.println(e.toString());
+                    continue;
+                }
+            }
+            while (true) {
+                try {
+                    if (!operate("update"))
+                        break;
+                } catch (Exception e) {
+                    System.err.println(e.toString());
+                    continue;
+                }
+            }
+            while (true) {
+                try {
+                    if (!operate("delete"))
+                        break;
+                } catch (Exception e) {
+                    System.err.println(e.toString());
+                    continue;
+                }
+            }
+            while (true) {
+                try {
+                    if (!operate("ttl"))
+                        break;
+                } catch (Exception e) {
+                    System.err.println(e.toString());
+                    continue;
+                }
+            }
+        }
+
+        public LoaderTestClass(LoadParameterTest parameter, LoadTargetTest loadTargetTest) {
+            super(parameter, new LoadDataTest(parameter.dataInfo, parameter), (LoadTarget)loadTargetTest);
+        }
+    }
+
+    public void testLoader() {
+        int updateNum = 10;
+        int deleteNum = 11;
+        int insertNum = 12;
+        int ttlNum = 13;
+        DataInfo dataInfo = new DataInfo("data.json", "data.meta", "id", 10);
+        TargetInfo targetInfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password");
+        LoadParameterTest loadParam = new LoadParameterTest(dataInfo, targetInfo, updateNum, deleteNum, insertNum, ttlNum);
+        LoadTargetTest loadTarget = new LoadTargetTest(targetInfo);
+        LoaderTestClass loader = new LoaderTestClass(loadParam, loadTarget);
+        loader.start();
+        try {
+            loader.join();
+        }
+        catch (Exception e) {
+            assertTrue(false);
+        }
+        assertTrue(loader.getParameterForTest().updateNum == updateNum);
+        assertTrue(loader.getParameterForTest().deleteNum == deleteNum);
+        assertTrue(loader.getParameterForTest().insertNum == insertNum);
+        assertTrue(loader.getParameterForTest().ttlNum == ttlNum);
+
+        assertTrue(loader.getDataForTest().updateCnt == updateNum + 1);
+        assertTrue(loader.getDataForTest().insertCnt == insertNum + 1);
+        assertTrue(loader.getDataForTest().ttlCnt == ttlNum + 1);
+        assertTrue(loader.getDataForTest().deleteCnt == deleteNum + 1);
+
+        assertTrue(loadTarget.deleteCnt == deleteNum);
+        assertTrue(loadTarget.upsertCnt == (updateNum + insertNum + ttlNum + 1));
+
+        assertTrue(loader.successStats.deleteNumber == deleteNum - 1);
+        assertTrue(loader.failedStat.deleteNumber == 1);
+        assertTrue(loader.successStats.insertNumber + loader.successStats.updateNumber + loader.successStats.ttlNumber ==
+                insertNum + updateNum + ttlNum);
+        assertTrue(loader.failedStat.insertNumber + loader.failedStat.updateNumber + loader.failedStat.ttlNumber ==
+                0);
     }
 }

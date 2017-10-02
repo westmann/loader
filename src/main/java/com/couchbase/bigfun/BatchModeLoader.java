@@ -3,7 +3,7 @@ package com.couchbase.bigfun;
 import java.lang.Thread;
 import java.util.Date;
 
-public class BatchModeLoader extends Loader<BatchModeLoadData, BatchModeLoadParameter> {
+public class BatchModeLoader extends Loader<BatchModeLoadParameter, BatchModeLoadData> {
 
     private String operation;
 

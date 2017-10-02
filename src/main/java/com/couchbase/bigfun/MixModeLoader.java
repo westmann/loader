@@ -6,7 +6,7 @@ import java.lang.*;
 import java.io.*;
 import java.util.Date;
 
-public class MixModeLoader extends Loader<MixModeLoadData, MixModeLoadParameter> {
+public class MixModeLoader extends Loader<MixModeLoadParameter, MixModeLoadData> {
 
     private RandomCategoryGen operationRandomizer;
 

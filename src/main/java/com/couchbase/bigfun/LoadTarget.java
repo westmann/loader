@@ -9,6 +9,7 @@ import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
 import com.couchbase.client.java.error.TemporaryFailureException;
 
+import java.sql.Time;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.lang.Thread;
@@ -20,7 +21,7 @@ public class LoadTarget {
     private CouchbaseEnvironment env;
     private Cluster cluster;
     private Bucket bucket;
-    private long timeout;
+    protected long timeout;
 
     public LoadTarget(TargetInfo targetInfo) {
         this.targetInfo = targetInfo;
@@ -28,7 +29,7 @@ public class LoadTarget {
         this.timeout = env.kvTimeout();
         this.cluster = CouchbaseCluster.create(env, targetInfo.host);
         this.bucket = targetInfo.password.equals("") ?
-                cluster.openBucket(targetInfo.bucket, targetInfo.password) : cluster.openBucket(targetInfo.bucket);
+                cluster.openBucket(targetInfo.bucket) : cluster.openBucket(targetInfo.bucket, targetInfo.password);
     }
 
     public void upsert(JsonDocument doc) {
@@ -66,11 +67,11 @@ public class LoadTarget {
         }
     }
 
-    private void upsertWithoutRetry(JsonDocument doc) {
+    protected void upsertWithoutRetry(JsonDocument doc) {
         this.bucket.upsert(doc, PersistTo.NONE, timeout, TimeUnit.MILLISECONDS);
     }
 
-    private void deleteWithoutRetry(JsonDocument doc) {
+    protected void deleteWithoutRetry(JsonDocument doc) {
         this.bucket.remove(doc, PersistTo.NONE, timeout, TimeUnit.MILLISECONDS);
     }
 

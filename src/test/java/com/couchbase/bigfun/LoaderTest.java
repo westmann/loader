@@ -1,6 +1,8 @@
 package com.couchbase.bigfun;
 
+import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.document.json.JsonObject;
+import com.couchbase.client.java.error.TemporaryFailureException;
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
@@ -13,6 +15,7 @@ import java.io.FileWriter;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.File;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Unit test for simple App.
@@ -263,6 +266,76 @@ public class LoaderTest
             Object v = obj.get("updatefieldname");
             assertTrue(v instanceof String);
             assertTrue(((String)v).compareTo("test100000000001") >= 0 && ((String) v).compareTo("test100000000005") < 0);
+        }
+    }
+
+    private class LoadTargetTestTimeout extends LoadTarget
+    {
+        public int retryMax = 2;
+        public int currentRetryCount = 0;
+
+        @Override
+        protected void upsertWithoutRetry(JsonDocument doc) {
+            if (currentRetryCount > retryMax) {
+                return;
+            }
+            else {
+                this.currentRetryCount++;
+                throw new RuntimeException("test timeout", new TimeoutException("test timeout"));
+            }
+        }
+
+        @Override
+        protected void deleteWithoutRetry(JsonDocument doc) {
+            if (currentRetryCount > retryMax) {
+                return;
+            }
+            else {
+                this.currentRetryCount++;
+                throw new RuntimeException("test timeout");
+            }
+        }
+
+        public LoadTargetTestTimeout(TargetInfo targetInfo) {
+            super(targetInfo);
+            this.timeout = this.timeout / 2;
+        }
+    }
+
+    public void testLoadTarget()
+    {
+        TargetInfo targetinfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password");
+        LoadTarget target = new LoadTarget(targetinfo);
+        String key = "1";
+        String docJson = "{\"id\" : \"1\", \"updatefieldname\" : \"2000-01-02\", \"field2\" : \"abcd\"}";
+        JsonDocument doc = JsonDocument.create(key, JsonObject.fromJson(docJson));
+        target.upsert(doc);
+        target.delete(doc);
+        target.close();
+    }
+
+    public void testLoadTargetRetry() {
+        TargetInfo targetinfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password");
+        String key = "1";
+        String docJson = "{\"id\" : \"1\", \"updatefieldname\" : \"2000-01-02\", \"field2\" : \"abcd\"}";
+        JsonDocument doc = JsonDocument.create(key, JsonObject.fromJson(docJson));
+        {
+            LoadTargetTestTimeout target = new LoadTargetTestTimeout(targetinfo);
+            target.upsert(doc);
+            assertTrue(target.currentRetryCount == 3);
+            target.close();
+        }
+        {
+            LoadTargetTestTimeout target = new LoadTargetTestTimeout(targetinfo);
+            try {
+                target.delete(doc);
+                assertTrue(false);
+            } catch (Exception e) {
+                assertTrue(e instanceof RuntimeException);
+                assertTrue(e.getCause() == null);
+                assertTrue(target.currentRetryCount == 1);
+            }
+            target.close();
         }
     }
 }

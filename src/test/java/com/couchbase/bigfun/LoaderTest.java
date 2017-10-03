@@ -400,7 +400,7 @@ public class LoaderTest
                 return doc;
         }
         @Override
-        public JsonDocument GetNextDocumentTTL() {
+        public JsonDocument GetNextDocumentForTTL() {
             if (ttlCnt ++ >= loadParameter.ttlNum)
                 return null;
             else
@@ -533,7 +533,7 @@ public class LoaderTest
     private String[] initializeJsonDocs(int size) {
         String docContents[] = new String[size];
         for (int i = 0; i < size; i++) {
-            String content = String.format("{\"id\":%d, \"intfield\":1, \"floatfield\":1.1, \"datefield\":\"2000-01-01\", \"timefield\":\"2001-01-01T00:00:00\", \"strsfield\":\"str1\", \"strfmtfield\":\"strfmt001\"}", i + 1);
+            String content = String.format("{\"id\":%d, \"intfield\":1000000000000, \"floatfield\":1.1, \"datefield\":\"2000-01-01\", \"timefield\":\"2001-01-01T00:00:00\", \"strsfield\":\"str1\", \"strfmtfield\":\"strfmt001\"}", i + 1);
             docContents[i] = content;
         }
         return docContents;
@@ -672,7 +672,7 @@ public class LoaderTest
     }
 
     // Env specific test, disabled by default remove "_" in method to enable
-    public void testMixModeLoader() {
+    public void _testMixModeLoader() {
         String dataFile = "data.json";
         String metaFile = "data.meta";
         String docContents[] = initializeJsonDocs(200);
@@ -861,5 +861,117 @@ public class LoaderTest
             assertTrue(loader.successStats.ttlNumber + loader.successStats.deleteNumber == loader.getData().getRemovedKeysNumber() +
                     loader.successStats.insertNumber - (loader.getData().getCurrentExtraInsertId() - extraIdStart));
         }
+    }
+
+    public void testBatchModeLoadData() {
+        String dataFile = "data.json";
+        String metaFile = "data.meta";
+        String docContents[] = initializeJsonDocs(200);
+        DataInfo dataInfo = new DataInfo(dataFile, metaFile, "id", docContents.length);
+        createFileWithContents(dataFile, docContents);
+
+        String contentsMeta[] = {String.format("IDRange=1:%d", docContents.length)};
+        createFileWithContents(metaFile, contentsMeta);
+
+        BatchModeUpdateParameter batchModeUpdateParameter = new BatchModeUpdateParameter("intfield", "integer", "1000", "1005");
+        BatchModeTTLParameter batchModeTTLParameter = new BatchModeTTLParameter(1, 10);
+
+        BatchModeLoadData data = new BatchModeLoadData(dataInfo, batchModeTTLParameter, batchModeUpdateParameter);
+
+        JsonDocument doc = null;
+        for (long i = 0; i < docContents.length; i ++)
+        {
+            if (i % 4 == 0) {
+                doc = data.GetNextDocumentForInsert();
+                assertTrue((int)(doc.content().get("id")) == i+1);
+            }
+            else if (i % 4 == 1) {
+                doc = data.GetNextDocumentForUpdate();
+                assertTrue((long)doc.content().get("intfield") >= 1000 && (long)doc.content().get("intfield") < 1005 );
+            }
+            else if (i % 4 == 2) {
+                doc = data.GetNextDocumentForDelete();
+            }
+            else if (i % 4 == 3) {
+                doc = data.GetNextDocumentForTTL();
+                assertTrue(doc.expiry() >= 1 && doc.expiry() < 10);
+            }
+            assertTrue(doc.id().equals(String.valueOf(i+1)));
+        }
+        assertTrue(data.GetNextDocumentForDelete() == null);
+        assertTrue(data.GetNextDocumentForInsert() == null);
+        assertTrue(data.GetNextDocumentForUpdate() == null);
+        assertTrue(data.GetNextDocumentForTTL() == null);
+        data.close();
+    }
+
+    public void testMixModeLoadData() {
+        String dataFile = "data.json";
+        String metaFile = "data.meta";
+        String docContents[] = initializeJsonDocs(200);
+        DataInfo dataInfo = new DataInfo(dataFile, metaFile, "id", docContents.length);
+        createFileWithContents(dataFile, docContents);
+
+        String contentsMeta[] = {String.format("IDRange=1:%d", docContents.length)};
+        createFileWithContents(metaFile, contentsMeta);
+
+        MixModeInsertParameter insertParam = new MixModeInsertParameter(1000000000);
+        MixModeDeleteParameter delParam = new MixModeDeleteParameter(10);
+        MixModeTTLParameter ttlParameter = new MixModeTTLParameter(1, 10);
+        MixModeLoadData data = new MixModeLoadData(dataInfo, insertParam, delParam, ttlParameter);
+
+        JsonDocument doc = null;
+        doc = data.GetNextDocumentForInsert();
+        assertTrue(doc.id().equals(String.valueOf(1000000000)));
+        assertTrue(data.getCurrentExtraInsertId() == 1000000001);
+        for (int i = 0; i < 9; i ++) {
+            doc = data.GetNextDocumentForDelete();
+            assertTrue(Long.valueOf(doc.id()) >= 1 && Long.valueOf(doc.id()) <= docContents.length);
+            assertTrue(data.getRemovedKeysNumber() == i + 1);
+        }
+
+        doc = data.GetNextDocumentForInsert();
+        assertTrue(doc.id().equals(String.valueOf(1000000001)));
+        assertTrue(data.getCurrentExtraInsertId() == 1000000002);
+
+        doc = data.GetNextDocumentForDelete();
+        assertTrue(Long.valueOf(doc.id()) >= 1 && Long.valueOf(doc.id()) <= docContents.length);
+        assertTrue(data.getRemovedKeysNumber() == 10);
+
+        doc = data.GetNextDocumentForInsert();
+        assertTrue(Long.valueOf(doc.id()) >= 1 && Long.valueOf(doc.id()) <= docContents.length);
+        assertTrue(data.getCurrentExtraInsertId() == 1000000002);
+        assertTrue(data.getRemovedKeysNumber() == 9);
+
+        doc = data.GetNextDocumentForDelete();
+        assertTrue(Long.valueOf(doc.id()) >= 1 && Long.valueOf(doc.id()) <= docContents.length);
+        assertTrue(data.getRemovedKeysNumber() == 10);
+
+        for (int i = 0; i < 45; i ++) {
+            doc = data.GetNextDocumentForTTL();
+            assertTrue(Long.valueOf(doc.id()) >= 1 && Long.valueOf(doc.id()) <= docContents.length);
+            assertTrue(data.getRemovedKeysNumber() == 11 + i * 2);
+            doc = data.GetNextDocumentForDelete();
+            assertTrue(Long.valueOf(doc.id()) >= 1 && Long.valueOf(doc.id()) <= docContents.length);
+            assertTrue(data.getRemovedKeysNumber() == 12 + i * 2);
+        }
+
+        try {
+            doc = data.GetNextDocumentForTTL();
+            assertTrue(false);
+        }
+        catch (RuntimeException e)
+        { assertTrue(e.getMessage().equals("Too much documents removed"));}
+        try {
+            doc = data.GetNextDocumentForDelete();
+            assertTrue(false);
+        }
+        catch (RuntimeException e)
+        { assertTrue(e.getMessage().equals("Too much documents removed"));}
+
+        assertTrue(data.getCurrentExtraInsertId() == 1000000002);
+        assertTrue(data.getRemovedKeysNumber() == 100);
+
+        data.close();
     }
 }

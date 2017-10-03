@@ -66,7 +66,7 @@ public class BatchModeLoadData extends LoadData {
     }
 
     @Override
-    public JsonDocument GetNextDocumentTTL() {
+    public JsonDocument GetNextDocumentForTTL() {
         JsonDocument doc = GetNextDocument();
         if (doc != null) {
             int expiry = getRandomExpiry();

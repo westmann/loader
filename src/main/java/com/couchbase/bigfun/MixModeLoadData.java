@@ -100,7 +100,7 @@ public class MixModeLoadData extends LoadData {
     }
 
     @Override
-    public JsonDocument GetNextDocumentTTL() {
+    public JsonDocument GetNextDocumentForTTL() {
         String keyToTTL = getRandomKeyToRemove();
         JsonDocument docTemplate = getRandomDocumentTemplate();
         int expiry = getRandomExpiry();

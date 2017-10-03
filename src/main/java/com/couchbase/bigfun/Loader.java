@@ -77,7 +77,7 @@ public class Loader<PARAMT, DATAT> extends Thread {
         private boolean ttl() {
             boolean result;
             try {
-                JsonDocument doc = data.GetNextDocumentTTL();
+                JsonDocument doc = data.GetNextDocumentForTTL();
                 if (doc != null) {
                     this.target.upsert(doc);
                     this.successStats.ttlNumber++;

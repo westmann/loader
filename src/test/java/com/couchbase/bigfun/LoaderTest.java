@@ -424,6 +424,10 @@ public class LoaderTest
         @Override
         protected void upsertWithoutRetry(JsonDocument doc) {
             upsertCnt++;
+            try {
+                Thread.sleep(10);
+            }
+            catch (InterruptedException e) {}
             if (upsertCnt == 1)
                 throw new TemporaryFailureException("test loader");
             return;
@@ -432,6 +436,10 @@ public class LoaderTest
         @Override
         protected void deleteWithoutRetry(JsonDocument doc) {
             deleteCnt++;
+            try {
+                Thread.sleep(10);
+            }
+            catch (InterruptedException e) {}
             if (deleteCnt == 1)
                 throw new RuntimeException("test loader");
             return;
@@ -528,6 +536,16 @@ public class LoaderTest
                 insertNum + updateNum + ttlNum);
         assertTrue(loader.failedStats.insertNumber + loader.failedStats.updateNumber + loader.failedStats.ttlNumber ==
                 0);
+
+        assertTrue(loader.duration >= loadTarget.timeout + 10 * (loadTarget.deleteCnt + loadTarget.upsertCnt) && loader.duration <= 1.5 * (loadTarget.timeout + 10 * (loadTarget.deleteCnt + loadTarget.upsertCnt)));
+        long successUpsertLatency = loader.successStats.updateLatency + loader.successStats.insertLatency + loader.successStats.ttlLatency;
+        long successUpsertNumber = loader.successStats.updateNumber + loader.successStats.insertNumber + loader.successStats.ttlNumber;
+        long failedUpsertLatency = loader.failedStats.updateLatency + loader.failedStats.insertLatency + loader.failedStats.ttlLatency;
+
+        assertTrue( successUpsertLatency >= loadTarget.timeout + 10 * successUpsertNumber && successUpsertLatency <= 1.5 * (loadTarget.timeout + 10 * successUpsertNumber));
+        assertTrue(failedUpsertLatency == 0);
+        assertTrue( loader.successStats.deleteLatency >= 10 * loader.successStats.deleteNumber && loader.successStats.deleteLatency <= 1.5 * (10 * loader.successStats.deleteNumber));
+        assertTrue( loader.failedStats.deleteLatency >= 10 * loader.failedStats.deleteNumber && loader.failedStats.deleteLatency <= 1.5 * (10 * loader.failedStats.deleteNumber));
     }
 
     private String[] initializeJsonDocs(int size) {

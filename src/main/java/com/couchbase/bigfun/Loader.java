@@ -3,6 +3,7 @@ package com.couchbase.bigfun;
 import com.couchbase.client.java.document.JsonDocument;
 
 import java.lang.*;
+import java.util.Date;
 
 public class Loader<PARAMT, DATAT> extends Thread {
 
@@ -20,6 +21,8 @@ public class Loader<PARAMT, DATAT> extends Thread {
         public LoadStats successStats;
 
         public LoadStats failedStats;
+
+        public long duration;
 
         protected DATAT getData() {
             return (DATAT)data;
@@ -47,7 +50,10 @@ public class Loader<PARAMT, DATAT> extends Thread {
         }
 
         public void run() {
+            Date start = new Date();
             load();
+            Date end = new Date();
+            this.duration = end.getTime() - start.getTime();
             this.target.close();
             this.data.close();
         }
@@ -76,18 +82,23 @@ public class Loader<PARAMT, DATAT> extends Thread {
 
         private boolean ttl() {
             boolean result;
+            Date start = new Date();
             try {
                 JsonDocument doc = data.GetNextDocumentForTTL();
                 if (doc != null) {
                     this.target.upsert(doc);
+                    Date end = new Date();
                     this.successStats.ttlNumber++;
+                    this.successStats.ttlLatency += end.getTime() - start.getTime();
                     result = true;
                 }
                 else
                     result = false;
             }
             catch (Exception e) {
+                Date end = new Date();
                 this.failedStats.ttlNumber++;
+                this.failedStats.ttlLatency += end.getTime() - start.getTime();
                 throw e;
             }
             return result;
@@ -95,18 +106,23 @@ public class Loader<PARAMT, DATAT> extends Thread {
 
         private boolean insert() {
             boolean result;
+            Date start = new Date();
             try {
                 JsonDocument doc = data.GetNextDocumentForInsert();
                 if (doc != null) {
                     this.target.upsert(doc);
+                    Date end = new Date();
                     this.successStats.insertNumber++;
+                    this.successStats.insertLatency += end.getTime() - start.getTime();
                     result = true;
                 }
                 else
                     result = false;
             }
             catch (Exception e) {
+                Date end = new Date();
                 this.failedStats.insertNumber++;
+                this.failedStats.insertLatency += end.getTime() - start.getTime();
                 throw e;
             }
             return result;
@@ -114,18 +130,23 @@ public class Loader<PARAMT, DATAT> extends Thread {
 
         private boolean delete() {
             boolean result;
+            Date start = new Date();
             try {
                 JsonDocument doc = data.GetNextDocumentForDelete();
                 if (doc != null) {
                     this.target.delete(doc);
+                    Date end = new Date();
                     this.successStats.deleteNumber++;
+                    this.successStats.deleteLatency += end.getTime() - start.getTime();
                     result = true;
                 }
                 else
                     result = false;
             }
             catch (Exception e) {
+                Date end = new Date();
                 this.failedStats.deleteNumber++;
+                this.failedStats.deleteLatency += end.getTime() - start.getTime();
                 throw e;
             }
             return result;
@@ -133,18 +154,23 @@ public class Loader<PARAMT, DATAT> extends Thread {
 
         private boolean update() {
             boolean result;
+            Date start = new Date();
             try {
                 JsonDocument doc = data.GetNextDocumentForUpdate();
                 if (doc != null) {
                     this.target.upsert(doc);
+                    Date end = new Date();
                     this.successStats.updateNumber++;
+                    this.successStats.updateLatency += end.getTime() - start.getTime();
                     result = true;
                 }
                 else
                     result = false;
             }
             catch (Exception e) {
+                Date end = new Date();
                 this.failedStats.updateNumber++;
+                this.failedStats.updateLatency += end.getTime() - start.getTime();
                 throw e;
             }
             return result;

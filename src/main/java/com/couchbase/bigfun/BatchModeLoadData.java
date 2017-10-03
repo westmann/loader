@@ -49,7 +49,9 @@ public class BatchModeLoadData extends LoadData {
     @Override
     public JsonDocument GetNextDocumentForUpdate() {
         JsonDocument doc = GetNextDocument();
-        updater.updateJsonObject(doc.content());
+        if (doc != null) {
+            updater.updateJsonObject(doc.content());
+        }
         return doc;
     }
 
@@ -66,8 +68,12 @@ public class BatchModeLoadData extends LoadData {
     @Override
     public JsonDocument GetNextDocumentTTL() {
         JsonDocument doc = GetNextDocument();
-        int expiry = getRandomExpiry();
-        return JsonDocument.create(doc.id(), expiry, doc.content());
+        if (doc != null) {
+            int expiry = getRandomExpiry();
+            return JsonDocument.create(doc.id(), expiry, doc.content());
+        }
+        else
+            return doc;
     }
 
     public BatchModeLoadData(DataInfo dataInfo, BatchModeTTLParameter ttlParam, BatchModeUpdateParameter updateParam) {

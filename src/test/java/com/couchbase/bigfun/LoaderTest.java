@@ -9,7 +9,6 @@ import junit.framework.TestSuite;
 
 import com.google.gson.Gson;
 
-import java.lang.annotation.Target;
 import java.util.Date;
 
 import java.io.FileWriter;
@@ -194,77 +193,91 @@ public class LoaderTest
         }
     }
 
-    public void testJsonObjectUpdater() {
-        BatchModeUpdateParameter updateParameter1 = new BatchModeUpdateParameter("updatefieldname", "integer",
-                "100000000001", "100000000005");
-        BatchModeUpdateParameter updateParameter2 = new BatchModeUpdateParameter("updatefieldname", "float",
-                "100000000001.0", "100000000005.0");
-        BatchModeUpdateParameter updateParameter3 = new BatchModeUpdateParameter("updatefieldname", "date",
-                "2015-01-02", "2015-02-02");
-        BatchModeUpdateParameter updateParameter4 = new BatchModeUpdateParameter("updatefieldname", "time",
-                "2015-01-02T00:00:00", "2015-02-02T00:00:00");
-        String updatevaluefilepath = "updatevaluesfilepath.txt";
+    private void createFileWithContents(String filename, String contents[])
+    {
         try {
-            File file = new File(updatevaluefilepath);
+            File file = new File(filename);
             BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-            writer.write("teststr1\nteststr2\n");
+            for (int i = 0; i < contents.length; i++) {
+                writer.write(contents[i]);
+                writer.write("\n");
+            }
             writer.close();
         }
         catch (IOException e)
         {
             assertTrue(false);
         }
-        BatchModeUpdateParameter updateParameter5 = new BatchModeUpdateParameter("updatefieldname", "string",
-                updatevaluefilepath);
-        BatchModeUpdateParameter updateParameter6 = new BatchModeUpdateParameter("updatefieldname", "string",
-                "test%012d", "100000000001", "100000000005");
+    }
 
+    BatchModeUpdateParameter[] initializeUpdateParameters() {
+        BatchModeUpdateParameter batchModeUpdateParameter[] = new BatchModeUpdateParameter[6];
+        batchModeUpdateParameter[0] = new BatchModeUpdateParameter("intfield", "integer",
+                "100000000001", "100000000005");
+        batchModeUpdateParameter[1] = new BatchModeUpdateParameter("floatfield", "float",
+                "100000000001.0", "100000000005.0");
+        batchModeUpdateParameter[2] = new BatchModeUpdateParameter("datefield", "date",
+                "2015-01-02", "2015-02-02");
+        batchModeUpdateParameter[3] = new BatchModeUpdateParameter("timefield", "time",
+                "2015-01-02T00:00:00", "2015-02-02T00:00:00");
+        String updatevaluefilepath = "updatevaluesfilepath.txt";
+        String contents[] = {"teststr1", "teststr2"};
+        createFileWithContents(updatevaluefilepath, contents);
+        batchModeUpdateParameter[4] = new BatchModeUpdateParameter("strsfield", "string",
+                updatevaluefilepath);
+        batchModeUpdateParameter[5] = new BatchModeUpdateParameter("strfmtfield", "string",
+                "test%012d", "100000000001", "100000000005");
+        return batchModeUpdateParameter;
+    }
+
+    public void testJsonObjectUpdater() {
+        BatchModeUpdateParameter[] batchModeUpdateParameters = initializeUpdateParameters();
         int testnumber = 1000;
         for (int i = 0; i < testnumber; i ++) {
-            JsonObjectUpdater ou1 = new JsonObjectUpdater(updateParameter1);
-            JsonObject obj = JsonObject.fromJson("{\"updatefieldname\" : 10, \"field2\" : \"abcd\"}");
+            JsonObjectUpdater ou1 = new JsonObjectUpdater(batchModeUpdateParameters[0]);
+            JsonObject obj = JsonObject.fromJson("{\"intfield\" : 10, \"field2\" : \"abcd\"}");
             ou1.updateJsonObject(obj);
-            Object v = obj.get("updatefieldname");
+            Object v = obj.get("intfield");
             assertTrue(v instanceof Long);
             assertTrue((long)v >= 100000000001l && (long) v < 100000000005l);
         }
         for (int i = 0; i < testnumber; i ++) {
-            JsonObjectUpdater ou1 = new JsonObjectUpdater(updateParameter2);
-            JsonObject obj = JsonObject.fromJson("{\"updatefieldname\" : 10.0, \"field2\" : \"abcd\"}");
+            JsonObjectUpdater ou1 = new JsonObjectUpdater(batchModeUpdateParameters[1]);
+            JsonObject obj = JsonObject.fromJson("{\"floatfield\" : 10.0, \"field2\" : \"abcd\"}");
             ou1.updateJsonObject(obj);
-            Object v = obj.get("updatefieldname");
+            Object v = obj.get("floatfield");
             assertTrue(v instanceof Double);
             assertTrue((double)v >= 100000000001.0 && (double) v < 100000000005.0);
         }
         for (int i = 0; i < testnumber; i ++) {
-            JsonObjectUpdater ou1 = new JsonObjectUpdater(updateParameter3);
-            JsonObject obj = JsonObject.fromJson("{\"updatefieldname\" : \"2000-01-02\", \"field2\" : \"abcd\"}");
+            JsonObjectUpdater ou1 = new JsonObjectUpdater(batchModeUpdateParameters[2]);
+            JsonObject obj = JsonObject.fromJson("{\"datefield\" : \"2000-01-02\", \"field2\" : \"abcd\"}");
             ou1.updateJsonObject(obj);
-            Object v = obj.get("updatefieldname");
+            Object v = obj.get("datefield");
             assertTrue(v instanceof String);
             assertTrue(((String)v).compareTo("2015-01-02") >= 0 && ((String) v).compareTo("2015-02-02") < 0);
         }
         for (int i = 0; i < testnumber; i ++) {
-            JsonObjectUpdater ou1 = new JsonObjectUpdater(updateParameter4);
-            JsonObject obj = JsonObject.fromJson("{\"updatefieldname\" : \"2000-01-02T00:01:02\", \"field2\" : \"abcd\"}");
+            JsonObjectUpdater ou1 = new JsonObjectUpdater(batchModeUpdateParameters[3]);
+            JsonObject obj = JsonObject.fromJson("{\"timefield\" : \"2000-01-02T00:01:02\", \"field2\" : \"abcd\"}");
             ou1.updateJsonObject(obj);
-            Object v = obj.get("updatefieldname");
+            Object v = obj.get("timefield");
             assertTrue(v instanceof String);
             assertTrue(((String)v).compareTo("2015-01-02T00:00:00") >= 0 && ((String) v).compareTo("2015-02-02T00:00:00") < 0);
         }
         for (int i = 0; i < testnumber; i ++) {
-            JsonObjectUpdater ou1 = new JsonObjectUpdater(updateParameter5);
-            JsonObject obj = JsonObject.fromJson("{\"updatefieldname\" : \"test0\", \"field2\" : \"abcd\"}");
+            JsonObjectUpdater ou1 = new JsonObjectUpdater(batchModeUpdateParameters[4]);
+            JsonObject obj = JsonObject.fromJson("{\"strsfield\" : \"test0\", \"field2\" : \"abcd\"}");
             ou1.updateJsonObject(obj);
-            Object v = obj.get("updatefieldname");
+            Object v = obj.get("strsfield");
             assertTrue(v instanceof String);
             assertTrue(((String)v).equals("teststr1") || ((String) v).equals("teststr2"));
         }
         for (int i = 0; i < testnumber; i ++) {
-            JsonObjectUpdater ou1 = new JsonObjectUpdater(updateParameter6);
-            JsonObject obj = JsonObject.fromJson("{\"updatefieldname\" : \"test0\", \"field2\" : \"abcd\"}");
+            JsonObjectUpdater ou1 = new JsonObjectUpdater(batchModeUpdateParameters[5]);
+            JsonObject obj = JsonObject.fromJson("{\"strfmtfield\" : \"test0\", \"field2\" : \"abcd\"}");
             ou1.updateJsonObject(obj);
-            Object v = obj.get("updatefieldname");
+            Object v = obj.get("strfmtfield");
             assertTrue(v instanceof String);
             assertTrue(((String)v).compareTo("test100000000001") >= 0 && ((String) v).compareTo("test100000000005") < 0);
         }
@@ -474,7 +487,8 @@ public class LoaderTest
         }
     }
 
-    public void testLoader() {
+    // Env specific test, disabled by default remove "_" in method to enable
+    public void _testLoader() {
         int updateNum = 10;
         int deleteNum = 11;
         int insertNum = 12;
@@ -505,10 +519,143 @@ public class LoaderTest
         assertTrue(loadTarget.upsertCnt == (updateNum + insertNum + ttlNum + 1));
 
         assertTrue(loader.successStats.deleteNumber == deleteNum - 1);
-        assertTrue(loader.failedStat.deleteNumber == 1);
+        assertTrue(loader.failedStats.deleteNumber == 1);
         assertTrue(loader.successStats.insertNumber + loader.successStats.updateNumber + loader.successStats.ttlNumber ==
                 insertNum + updateNum + ttlNum);
-        assertTrue(loader.failedStat.insertNumber + loader.failedStat.updateNumber + loader.failedStat.ttlNumber ==
+        assertTrue(loader.failedStats.insertNumber + loader.failedStats.updateNumber + loader.failedStats.ttlNumber ==
                 0);
+    }
+
+    private String[] initializeJsonDocs(int size) {
+        String docContents[] = new String[size];
+        for (int i = 0; i < size; i++) {
+            String content = String.format("{\"id\":%d, \"intfield\":1, \"floatfield\":1.1, \"datefield\":\"2000-01-01\", \"timefield\":\"2001-01-01T00:00:00\", \"strsfield\":\"str1\", \"strfmtfield\":\"strfmt001\"}", i);
+            docContents[i] = content;
+        }
+        return docContents;
+    }
+
+    public void testBatchModeLoader() {
+        String dataFile = "data.json";
+        String metaFile = "data.meta";
+        String docContents[] = initializeJsonDocs(20);
+        DataInfo dataInfo = new DataInfo(dataFile, metaFile, "id", docContents.length);
+        createFileWithContents(dataFile, docContents);
+
+        String contentsMeta[] = {String.format("IDRange=1:%d", docContents.length)};
+        createFileWithContents(metaFile, contentsMeta);
+
+        TargetInfo targetInfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password");
+
+        BatchModeUpdateParameter batchModeUpdateParameters[] = initializeUpdateParameters();
+        BatchModeTTLParameter batchModeTTLParameter = new BatchModeTTLParameter(1, 10);
+
+        {
+            BatchModeLoadParameter batchModeLoadParameter = new BatchModeLoadParameter(dataInfo, targetInfo, "insert", batchModeUpdateParameters[0], batchModeTTLParameter);
+            BatchModeLoader loader = new BatchModeLoader(batchModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            }
+            catch (InterruptedException e)
+            {
+                assertTrue(false);
+            }
+            assertTrue(loader.successStats.insertNumber == docContents.length);
+            assertTrue(loader.successStats.deleteNumber == 0);
+            assertTrue(loader.successStats.updateNumber == 0);
+            assertTrue(loader.successStats.ttlNumber == 0);
+            assertTrue(loader.failedStats.insertNumber == 0);
+            assertTrue(loader.failedStats.deleteNumber == 0);
+            assertTrue(loader.failedStats.updateNumber == 0);
+            assertTrue(loader.failedStats.ttlNumber == 0);
+        }
+
+        {
+            BatchModeLoadParameter batchModeLoadParameter = new BatchModeLoadParameter(dataInfo, targetInfo, "delete", batchModeUpdateParameters[0], batchModeTTLParameter);
+            BatchModeLoader loader = new BatchModeLoader(batchModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            }
+            catch (InterruptedException e)
+            {
+                assertTrue(false);
+            }
+            assertTrue(loader.successStats.insertNumber == 0);
+            assertTrue(loader.successStats.deleteNumber == docContents.length);
+            assertTrue(loader.successStats.updateNumber == 0);
+            assertTrue(loader.successStats.ttlNumber == 0);
+            assertTrue(loader.failedStats.insertNumber == 0);
+            assertTrue(loader.failedStats.deleteNumber == 0);
+            assertTrue(loader.failedStats.updateNumber == 0);
+            assertTrue(loader.failedStats.ttlNumber == 0);
+        }
+
+        {
+            BatchModeLoadParameter batchModeLoadParameter = new BatchModeLoadParameter(dataInfo, targetInfo, "insert", batchModeUpdateParameters[0], batchModeTTLParameter);
+            BatchModeLoader loader = new BatchModeLoader(batchModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            } catch (InterruptedException e) {
+                assertTrue(false);
+            }
+        }
+
+        {
+            BatchModeLoadParameter batchModeLoadParameter = new BatchModeLoadParameter(dataInfo, targetInfo, "ttl", batchModeUpdateParameters[0], batchModeTTLParameter);
+            BatchModeLoader loader = new BatchModeLoader(batchModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+                Thread.sleep(10*1000);
+            }
+            catch (InterruptedException e)
+            {
+                assertTrue(false);
+            }
+            assertTrue(loader.successStats.insertNumber == 0);
+            assertTrue(loader.successStats.deleteNumber == 0);
+            assertTrue(loader.successStats.updateNumber == 0);
+            assertTrue(loader.successStats.ttlNumber == docContents.length);
+            assertTrue(loader.failedStats.insertNumber == 0);
+            assertTrue(loader.failedStats.deleteNumber == 0);
+            assertTrue(loader.failedStats.updateNumber == 0);
+            assertTrue(loader.failedStats.ttlNumber == 0);
+        }
+
+        {
+            BatchModeLoadParameter batchModeLoadParameter = new BatchModeLoadParameter(dataInfo, targetInfo, "insert", batchModeUpdateParameters[0], batchModeTTLParameter);
+            BatchModeLoader loader = new BatchModeLoader(batchModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            } catch (InterruptedException e) {
+                assertTrue(false);
+            }
+        }
+
+        for (int i = 0; i < batchModeUpdateParameters.length; i++)
+        {
+            BatchModeLoadParameter batchModeLoadParameter = new BatchModeLoadParameter(dataInfo, targetInfo, "update", batchModeUpdateParameters[i], batchModeTTLParameter);
+            BatchModeLoader loader = new BatchModeLoader(batchModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            }
+            catch (InterruptedException e)
+            {
+                assertTrue(false);
+            }
+            assertTrue(loader.successStats.insertNumber == 0);
+            assertTrue(loader.successStats.deleteNumber == 0);
+            assertTrue(loader.successStats.updateNumber == docContents.length);
+            assertTrue(loader.successStats.ttlNumber == 0);
+            assertTrue(loader.failedStats.insertNumber == 0);
+            assertTrue(loader.failedStats.deleteNumber == 0);
+            assertTrue(loader.failedStats.updateNumber == 0);
+            assertTrue(loader.failedStats.ttlNumber == 0);
+        }
     }
 }

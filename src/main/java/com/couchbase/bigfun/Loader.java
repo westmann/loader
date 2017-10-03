@@ -2,9 +2,7 @@ package com.couchbase.bigfun;
 
 import com.couchbase.client.java.document.JsonDocument;
 
-import java.io.IOException;
 import java.lang.*;
-import java.util.Date;
 
 public class Loader<PARAMT, DATAT> extends Thread {
 
@@ -21,7 +19,7 @@ public class Loader<PARAMT, DATAT> extends Thread {
 
         public LoadStats successStats;
 
-        public LoadStats failedStat;
+        public LoadStats failedStats;
 
         protected DATAT getData() {
             return (DATAT)data;
@@ -87,7 +85,7 @@ public class Loader<PARAMT, DATAT> extends Thread {
                     result = false;
             }
             catch (Exception e) {
-                this.failedStat.ttlNumber++;
+                this.failedStats.ttlNumber++;
                 throw e;
             }
             return result;
@@ -106,7 +104,7 @@ public class Loader<PARAMT, DATAT> extends Thread {
                     result = false;
             }
             catch (Exception e) {
-                this.failedStat.insertNumber++;
+                this.failedStats.insertNumber++;
                 throw e;
             }
             return result;
@@ -125,7 +123,7 @@ public class Loader<PARAMT, DATAT> extends Thread {
                     result = false;
             }
             catch (Exception e) {
-                this.failedStat.deleteNumber++;
+                this.failedStats.deleteNumber++;
                 throw e;
             }
             return result;
@@ -144,7 +142,7 @@ public class Loader<PARAMT, DATAT> extends Thread {
                     result = false;
             }
             catch (Exception e) {
-                this.failedStat.updateNumber++;
+                this.failedStats.updateNumber++;
                 throw e;
             }
             return result;
@@ -159,7 +157,7 @@ public class Loader<PARAMT, DATAT> extends Thread {
             else
                 this.target = loadTarget;
             this.successStats = new LoadStats();
-            this.failedStat = new LoadStats();
+            this.failedStats = new LoadStats();
         }
 
         public Loader(LoadParameter parameter, LoadData data) {

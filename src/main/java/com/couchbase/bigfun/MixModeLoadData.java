@@ -26,6 +26,7 @@ public class MixModeLoadData extends LoadData {
 
     private long extraInsertIdStart;
     private long currentExtraInsertId;
+    public long getCurrentExtraInsertId() {return this.currentExtraInsertId;};
 
     private JsonDocument templateDocuments[];
 
@@ -35,6 +36,8 @@ public class MixModeLoadData extends LoadData {
     private int expiryEnd;
 
     private HashSet<String> removedKeys = new HashSet<String>();
+
+    public long getRemovedKeysNumber() {return this.removedKeys.size();}
 
     private Random random = new Random();
 
@@ -49,7 +52,7 @@ public class MixModeLoadData extends LoadData {
     }
 
     private String getRandomKeyToInsert() {
-        if (removedKeys.size() > this.deletedDocNumberThreshold) {
+        if (removedKeys.size() >= this.deletedDocNumberThreshold) {
             String k = this.removedKeys.iterator().next();
             removedKeys.remove(k);
             return k;
@@ -59,6 +62,8 @@ public class MixModeLoadData extends LoadData {
     }
 
     private String getRandomKeyToRemove() {
+        if (removedKeys.size() >= ((operationIdEnd - operationIdStart + 1) / 2))
+            throw new RuntimeException("Too much documents removed");
         String k = getRandomNonRemovedKey();
         removedKeys.add(k);
         return k;
@@ -100,6 +105,11 @@ public class MixModeLoadData extends LoadData {
         JsonDocument docTemplate = getRandomDocumentTemplate();
         int expiry = getRandomExpiry();
         return JsonDocument.create(keyToTTL, expiry, docTemplate.content());
+    }
+
+    @Override
+    public void close() {
+        return;
     }
 
     public MixModeLoadData(DataInfo dataInfo, MixModeInsertParameter insertParam,

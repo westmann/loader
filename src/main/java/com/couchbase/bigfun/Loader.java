@@ -48,6 +48,8 @@ public class Loader<PARAMT, DATAT> extends Thread {
 
         public void run() {
             load();
+            this.target.close();
+            this.data.close();
         }
 
         protected boolean operate(String operation) {

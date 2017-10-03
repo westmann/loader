@@ -76,6 +76,17 @@ public class BatchModeLoadData extends LoadData {
             return doc;
     }
 
+    @Override
+    public void close() {
+        try {
+            bufferedReader.close();
+        }
+        catch (IOException e) {
+            System.err.println(e.toString());
+        }
+        return;
+    }
+
     public BatchModeLoadData(DataInfo dataInfo, BatchModeTTLParameter ttlParam, BatchModeUpdateParameter updateParam) {
         super(dataInfo);
         this.ttlParam = ttlParam;

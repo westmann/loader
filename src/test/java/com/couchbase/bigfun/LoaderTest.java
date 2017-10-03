@@ -406,6 +406,10 @@ public class LoaderTest
             else
                 return doc;
         }
+        @Override
+        public void close() {
+            return;
+        }
         public LoadDataTest(DataInfo dataInfo, LoadParameterTest loadParameter) {
             super(dataInfo);
             this.loadParameter = loadParameter;
@@ -529,7 +533,7 @@ public class LoaderTest
     private String[] initializeJsonDocs(int size) {
         String docContents[] = new String[size];
         for (int i = 0; i < size; i++) {
-            String content = String.format("{\"id\":%d, \"intfield\":1, \"floatfield\":1.1, \"datefield\":\"2000-01-01\", \"timefield\":\"2001-01-01T00:00:00\", \"strsfield\":\"str1\", \"strfmtfield\":\"strfmt001\"}", i);
+            String content = String.format("{\"id\":%d, \"intfield\":1, \"floatfield\":1.1, \"datefield\":\"2000-01-01\", \"timefield\":\"2001-01-01T00:00:00\", \"strsfield\":\"str1\", \"strfmtfield\":\"strfmt001\"}", i + 1);
             docContents[i] = content;
         }
         return docContents;
@@ -657,6 +661,205 @@ public class LoaderTest
             assertTrue(loader.failedStats.deleteNumber == 0);
             assertTrue(loader.failedStats.updateNumber == 0);
             assertTrue(loader.failedStats.ttlNumber == 0);
+        }
+    }
+
+    private class MixModeLoaderTest extends MixModeLoader {
+        public MixModeLoadData getData() { return super.getData(); }
+        public MixModeLoaderTest(MixModeLoadParameter loadParameter){
+            super(loadParameter);
+        }
+    }
+
+    // Env specific test, disabled by default remove "_" in method to enable
+    public void testMixModeLoader() {
+        String dataFile = "data.json";
+        String metaFile = "data.meta";
+        String docContents[] = initializeJsonDocs(200);
+        DataInfo dataInfo = new DataInfo(dataFile, metaFile, "id", docContents.length);
+        createFileWithContents(dataFile, docContents);
+
+        String contentsMeta[] = {String.format("IDRange=1:%d", docContents.length)};
+        createFileWithContents(metaFile, contentsMeta);
+
+        long extraIdStart = 10000;
+
+        TargetInfo targetInfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password");
+        {
+            BatchModeUpdateParameter batchModeUpdateParameter = new BatchModeUpdateParameter("intfield", "integer", "1", "2");
+            BatchModeTTLParameter batchModeTTLParameter = new BatchModeTTLParameter(1, 10);
+            BatchModeLoadParameter batchModeLoadParameter = new BatchModeLoadParameter(dataInfo, targetInfo, "insert", batchModeUpdateParameter, batchModeTTLParameter);
+            BatchModeLoader loader = new BatchModeLoader(batchModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            }
+            catch (InterruptedException e)
+            {
+                assertTrue(false);
+            }
+            assertTrue(loader.successStats.insertNumber == docContents.length && loader.failedStats.insertNumber == 0);
+            assertTrue(loader.successStats.updateNumber == 0 && loader.failedStats.updateNumber == 0);
+            assertTrue(loader.successStats.deleteNumber == 0 && loader.failedStats.deleteNumber == 0);
+            assertTrue(loader.successStats.ttlNumber == 0 && loader.failedStats.ttlNumber == 0);
+        }
+
+        {
+            MixModeInsertParameter insertParameter = new MixModeInsertParameter(extraIdStart);
+            MixModeDeleteParameter deleteParameter = new MixModeDeleteParameter(1);
+            MixModeTTLParameter ttlParameter = new MixModeTTLParameter(1, 2);
+            MixModeLoadParameter mixModeLoadParameter = new MixModeLoadParameter(50, 20, new Date(),
+                    100, 0, 0, 0,
+                    dataInfo, targetInfo,
+                    insertParameter, deleteParameter, ttlParameter);
+            MixModeLoaderTest loader = new MixModeLoaderTest(mixModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            }
+            catch (InterruptedException e) {
+                assertTrue(false);
+            }
+            assertTrue(loader.successStats.insertNumber >= 399 && loader.successStats.insertNumber <= 401 && loader.failedStats.insertNumber == 0);
+            assertTrue(loader.successStats.updateNumber == 0 && loader.failedStats.updateNumber == 0);
+            assertTrue(loader.successStats.deleteNumber == 0 && loader.failedStats.deleteNumber == 0);
+            assertTrue(loader.successStats.ttlNumber == 0 && loader.failedStats.ttlNumber == 0);
+            assertTrue(loader.getData().getCurrentExtraInsertId() == loader.successStats.insertNumber + extraIdStart);
+            assertTrue(loader.getData().getRemovedKeysNumber() == 0);
+        }
+
+        {
+            MixModeInsertParameter insertParameter = new MixModeInsertParameter(extraIdStart);
+            MixModeDeleteParameter deleteParameter = new MixModeDeleteParameter(1);
+            MixModeTTLParameter ttlParameter = new MixModeTTLParameter(1, 2);
+            MixModeLoadParameter mixModeLoadParameter = new MixModeLoadParameter(50, 20, new Date(),
+                    0, 100, 0, 0,
+                    dataInfo, targetInfo,
+                    insertParameter, deleteParameter, ttlParameter);
+            MixModeLoader loader = new MixModeLoader(mixModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            }
+            catch (InterruptedException e) {
+                assertTrue(false);
+            }
+            assertTrue(loader.successStats.insertNumber == 0 && loader.failedStats.insertNumber == 0);
+            assertTrue(loader.successStats.updateNumber >= 399 && loader.successStats.updateNumber <= 401 && loader.failedStats.updateNumber == 0);
+            assertTrue(loader.successStats.deleteNumber == 0 && loader.failedStats.deleteNumber == 0);
+            assertTrue(loader.successStats.ttlNumber == 0 && loader.failedStats.ttlNumber == 0);
+            assertTrue(loader.getData().getCurrentExtraInsertId() == extraIdStart);
+            assertTrue(loader.getData().getRemovedKeysNumber() == 0);
+        }
+
+        {
+            MixModeInsertParameter insertParameter = new MixModeInsertParameter(extraIdStart);
+            MixModeDeleteParameter deleteParameter = new MixModeDeleteParameter(10);
+            MixModeTTLParameter ttlParameter = new MixModeTTLParameter(1, 2);
+            MixModeLoadParameter mixModeLoadParameter = new MixModeLoadParameter(200, 10, new Date(),
+                    0, 0, 100, 0,
+                    dataInfo, targetInfo,
+                    insertParameter, deleteParameter, ttlParameter);
+            MixModeLoader loader = new MixModeLoader(mixModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            }
+            catch (InterruptedException e) {
+                assertTrue(false);
+            }
+            assertTrue(loader.successStats.insertNumber == 0 && loader.successStats.insertNumber == 0);
+            assertTrue(loader.successStats.updateNumber == 0 && loader.failedStats.updateNumber == 0);
+            assertTrue(loader.successStats.deleteNumber >= 49 && loader.successStats.deleteNumber <= 51 && loader.failedStats.deleteNumber == 0);
+            assertTrue(loader.successStats.ttlNumber == 0 && loader.failedStats.ttlNumber == 0);
+            assertTrue(loader.getData().getCurrentExtraInsertId() == extraIdStart);
+            assertTrue(loader.getData().getRemovedKeysNumber() == loader.successStats.deleteNumber);
+        }
+
+        {
+            BatchModeUpdateParameter batchModeUpdateParameter = new BatchModeUpdateParameter("intfield", "integer", "1", "2");
+            BatchModeTTLParameter batchModeTTLParameter = new BatchModeTTLParameter(1, 10);
+            BatchModeLoadParameter batchModeLoadParameter = new BatchModeLoadParameter(dataInfo, targetInfo, "insert", batchModeUpdateParameter, batchModeTTLParameter);
+            BatchModeLoader loader = new BatchModeLoader(batchModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            }
+            catch (InterruptedException e)
+            {
+                assertTrue(false);
+            }
+            assertTrue(loader.successStats.insertNumber == docContents.length && loader.failedStats.insertNumber == 0);
+            assertTrue(loader.successStats.updateNumber == 0 && loader.failedStats.updateNumber == 0);
+            assertTrue(loader.successStats.deleteNumber == 0 && loader.failedStats.deleteNumber == 0);
+            assertTrue(loader.successStats.ttlNumber == 0 && loader.failedStats.ttlNumber == 0);
+        }
+
+        {
+            MixModeInsertParameter insertParameter = new MixModeInsertParameter(extraIdStart);
+            MixModeDeleteParameter deleteParameter = new MixModeDeleteParameter(10);
+            MixModeTTLParameter ttlParameter = new MixModeTTLParameter(1, 2);
+            MixModeLoadParameter mixModeLoadParameter = new MixModeLoadParameter(100, 20, new Date(),
+                    0, 0, 0, 100,
+                    dataInfo, targetInfo,
+                    insertParameter, deleteParameter, ttlParameter);
+            MixModeLoader loader = new MixModeLoader(mixModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            }
+            catch (InterruptedException e) {
+                assertTrue(false);
+            }
+            assertTrue(loader.successStats.insertNumber == 0 && loader.successStats.insertNumber == 0);
+            assertTrue(loader.successStats.updateNumber == 0 && loader.failedStats.updateNumber == 0);
+            assertTrue(loader.successStats.ttlNumber >= 99 && loader.successStats.ttlNumber <= 101 && loader.failedStats.ttlNumber >= 99 && loader.failedStats.ttlNumber <= 101);
+            assertTrue(loader.successStats.deleteNumber == 0 && loader.failedStats.deleteNumber == 0);
+            assertTrue(loader.getData().getCurrentExtraInsertId() == extraIdStart);
+            assertTrue(loader.getData().getRemovedKeysNumber() == loader.successStats.ttlNumber);
+        }
+
+        {
+            BatchModeUpdateParameter batchModeUpdateParameter = new BatchModeUpdateParameter("intfield", "integer", "1", "2");
+            BatchModeTTLParameter batchModeTTLParameter = new BatchModeTTLParameter(1, 10);
+            BatchModeLoadParameter batchModeLoadParameter = new BatchModeLoadParameter(dataInfo, targetInfo, "insert", batchModeUpdateParameter, batchModeTTLParameter);
+            BatchModeLoader loader = new BatchModeLoader(batchModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            }
+            catch (InterruptedException e)
+            {
+                assertTrue(false);
+            }
+            assertTrue(loader.successStats.insertNumber == docContents.length && loader.failedStats.insertNumber == 0);
+            assertTrue(loader.successStats.updateNumber == 0 && loader.failedStats.updateNumber == 0);
+            assertTrue(loader.successStats.deleteNumber == 0 && loader.failedStats.deleteNumber == 0);
+            assertTrue(loader.successStats.ttlNumber == 0 && loader.failedStats.ttlNumber == 0);
+        }
+
+        {
+            MixModeInsertParameter insertParameter = new MixModeInsertParameter(10000);
+            MixModeDeleteParameter deleteParameter = new MixModeDeleteParameter(10);
+            MixModeTTLParameter ttlParameter = new MixModeTTLParameter(1, 2);
+            MixModeLoadParameter mixModeLoadParameter = new MixModeLoadParameter(50, 30, new Date(),
+                    100, 100, 50, 50,
+                    dataInfo, targetInfo,
+                    insertParameter, deleteParameter, ttlParameter);
+            MixModeLoader loader = new MixModeLoader(mixModeLoadParameter);
+            loader.start();
+            try {
+                loader.join();
+            }
+            catch (InterruptedException e) {
+                assertTrue(false);
+            }
+            assertTrue(loader.successStats.insertNumber >= 160 && loader.successStats.insertNumber <= 240 && loader.failedStats.insertNumber == 0);
+            assertTrue(loader.successStats.updateNumber >= 160 && loader.successStats.updateNumber <= 240 && loader.failedStats.updateNumber == 0);
+            assertTrue(loader.successStats.ttlNumber >= 80 && loader.successStats.ttlNumber <= 120 && loader.failedStats.ttlNumber == 0);
+            assertTrue(loader.successStats.deleteNumber >= 80 && loader.successStats.deleteNumber <= 120 && loader.failedStats.deleteNumber == 0);
+            assertTrue(loader.successStats.ttlNumber + loader.successStats.deleteNumber == loader.getData().getRemovedKeysNumber() +
+                    loader.successStats.insertNumber - (loader.getData().getCurrentExtraInsertId() - extraIdStart));
         }
     }
 }

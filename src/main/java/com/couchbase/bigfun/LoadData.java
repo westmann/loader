@@ -8,6 +8,7 @@ public abstract class LoadData {
     public abstract JsonDocument GetNextDocumentForDelete();
     public abstract JsonDocument GetNextDocumentForInsert();
     public abstract JsonDocument GetNextDocumentTTL();
+    public abstract void close();
     public LoadData(DataInfo dataInfo) {
         this.dataInfo = dataInfo;
     }

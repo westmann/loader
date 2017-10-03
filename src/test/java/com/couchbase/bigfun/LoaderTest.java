@@ -535,7 +535,8 @@ public class LoaderTest
         return docContents;
     }
 
-    public void testBatchModeLoader() {
+    // Env specific test, disabled by default remove "_" in method to enable
+    public void _testBatchModeLoader() {
         String dataFile = "data.json";
         String metaFile = "data.meta";
         String docContents[] = initializeJsonDocs(20);

@@ -992,4 +992,37 @@ public class LoaderTest
 
         data.close();
     }
+
+    public void testLoadStats() {
+        LoadStats s1 = new LoadStats();
+        s1.insertNumber = 1;
+        s1.deleteNumber = 2;
+        s1.updateNumber = 3;
+        s1.ttlNumber = 4;
+        s1.insertLatency = 5;
+        s1.deleteLatency = 6;
+        s1.updateLatency = 7;
+        s1.ttlLatency = 8;
+
+        LoadStats s2 = new LoadStats();
+        s2.insertNumber = 1;
+        s2.deleteNumber = 2;
+        s2.updateNumber = 3;
+        s2.ttlNumber = 4;
+        s2.insertLatency = 5;
+        s2.deleteLatency = 6;
+        s2.updateLatency = 7;
+        s2.ttlLatency = 8;
+
+        s1.add(s2);
+        assertTrue(s1.insertNumber == 2 * s2.insertNumber);
+        assertTrue(s1.deleteNumber == 2 * s2.deleteNumber);
+        assertTrue(s1.updateNumber == 2 * s2.updateNumber);
+        assertTrue(s1.ttlNumber == 2 * s2.ttlNumber);
+        assertTrue(s1.insertLatency == 2 * s2.insertLatency);
+        assertTrue(s1.deleteLatency == 2 * s2.deleteLatency);
+        assertTrue(s1.updateLatency == 2 * s2.updateLatency);
+        assertTrue(s1.ttlLatency == 2 * s2.ttlLatency);
+        String s = s1.toString();
+    }
 }

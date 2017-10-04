@@ -26,6 +26,7 @@ public class MixModeLoadParametersGeneratorEntry extends LoadParametersGenerator
         System.out.println("-tp <ttlportion>");
         System.out.println("-md <maxdeletedocs>");
         System.out.println("-is <insertstart>");
+        System.out.println("-ir <insertrange>");
         System.exit(1);
     }
 
@@ -73,6 +74,9 @@ public class MixModeLoadParametersGeneratorEntry extends LoadParametersGenerator
                         case "-is":
                             arguments.put("insertIdStart", Long.valueOf(args[++i]));
                             break;
+                        case "-ir":
+                            arguments.put("insertIdRange", Long.valueOf(args[++i]));
+                            break;
                     }
                 }
                 ++i;
@@ -95,8 +99,8 @@ public class MixModeLoadParametersGeneratorEntry extends LoadParametersGenerator
         return new MixModeDeleteParameter((long) arguments.get("maxDeleteDocs"));
     }
 
-    private MixModeInsertParameter getInsertParameter() {
-        return new MixModeInsertParameter((long) arguments.get("insertIdStart"));
+    private MixModeInsertParameter getInsertParameter(int partitionid) {
+        return new MixModeInsertParameter((long) arguments.get("insertIdStart") + partitionid * (long)arguments.get("insertIdRange"));
     }
 
     private Date getStartTime() {
@@ -123,10 +127,10 @@ public class MixModeLoadParametersGeneratorEntry extends LoadParametersGenerator
         DataInfo partitionDataInfos[] = getAllPartitionDataInfos();
         MixModeTTLParameter ttlParameter = getTTLParameter();
         MixModeDeleteParameter deleteParameter = getDeleteParameter();
-        MixModeInsertParameter insertParameter = getInsertParameter();
         Date startTime = getStartTime();
         MixModeLoadParameters mixModeLoadParameters = new MixModeLoadParameters();
         for (int i = 0; i < partitionDataInfos.length; i++) {
+            MixModeInsertParameter insertParameter = getInsertParameter(i);
             MixModeLoadParameter mixModeLoadParameter = new MixModeLoadParameter(
                     (int)arguments.get("intervalMS"), (int)arguments.get("durationSeconds"), startTime,
                     (int)arguments.get("insertPropotion"), (int)arguments.get("updatePropotion"),

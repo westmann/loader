@@ -11,10 +11,10 @@ public class BatchModeLoadData extends LoadData {
     private BatchModeTTLParameter ttlParam;
     private BatchModeUpdateParameter updateParam;
 
-    BufferedReader bufferedReader;
-    String keyFieldName;
-    long maxDocumentsToLoad;
-    long loadedDocuments;
+    private BufferedReader bufferedReader;
+    private String keyFieldName;
+    private long maxDocumentsToLoad;
+    private long loadedDocuments;
 
     private int expiryStart;
     private int expiryEnd;
@@ -26,7 +26,7 @@ public class BatchModeLoadData extends LoadData {
     private JsonDocument GetNextDocument() {
         JsonDocument result = null;
         try {
-            if (loadedDocuments < this.maxDocumentsToLoad) {
+            if (this.maxDocumentsToLoad == 0 || loadedDocuments < this.maxDocumentsToLoad) {
                 String line = bufferedReader.readLine();
                 if (line != null) {
                     JsonObject obj = JsonObject.fromJson(line);

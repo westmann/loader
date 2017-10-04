@@ -27,6 +27,7 @@ public abstract class LoadParametersGenerator {
         System.out.println("-u <username>");
         System.out.println("-p <password>");
         System.out.println("-b <bucket>");
+        System.out.println("-ah <cbashost>");
     }
 
     protected void parseArguments() {
@@ -64,6 +65,9 @@ public abstract class LoadParametersGenerator {
                         break;
                     case "-k":
                         arguments.put("keyField", args[++i]);
+                        break;
+                    case "-ah":
+                        arguments.put("cbasHost", args[++i]);
                         break;
                 }
             }
@@ -117,8 +121,11 @@ public abstract class LoadParametersGenerator {
     }
 
     protected TargetInfo getTargetInfo() {
+        String cbasHost = "";
+        if (arguments.containsKey("cbasHost"))
+            cbasHost = (String)arguments.get("cbasHost");
         return new TargetInfo((String) arguments.get("host"), (String) arguments.get("bucket"),
-                (String) arguments.get("user"), (String) arguments.get("pwd"));
+                (String) arguments.get("user"), (String) arguments.get("pwd"), cbasHost);
     }
 
     private static String[] getAllSubFolders(String partitionPath)

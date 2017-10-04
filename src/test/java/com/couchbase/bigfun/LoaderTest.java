@@ -69,6 +69,7 @@ public class LoaderTest
         assertTrue(p.targetInfo.bucket.equals("bucket"));
         assertTrue(p.targetInfo.username.equals("username"));
         assertTrue(p.targetInfo.password.equals("password"));
+        assertTrue(p.targetInfo.cbashost.equals("cbashost"));
         assertTrue(p.insertParameter.insertIdStart == 2);
         assertTrue(p.deleteParameter.maxDeleteIds == 3);
         assertTrue(p.ttlParameter.expiryStart == 4);
@@ -77,7 +78,7 @@ public class LoaderTest
 
     public void testMixModeLoadParameters() {
         DataInfo dataInfo = new DataInfo("datafilepath", "metafilepath",  "keyfieldname", 1);
-        TargetInfo targetInfo = new TargetInfo("host", "bucket", "username", "password");
+        TargetInfo targetInfo = new TargetInfo("host", "bucket", "username", "password", "cbashost");
         MixModeInsertParameter insertParameter = new MixModeInsertParameter(2);
         MixModeDeleteParameter deleteParameter = new MixModeDeleteParameter(3);
         MixModeTTLParameter ttlParameter = new MixModeTTLParameter(4, 5);
@@ -111,11 +112,20 @@ public class LoaderTest
         assertTrue(batchModeLoadParameter.updateParameter.updateValueEnd.equals(updateValueEnd));
         assertTrue(batchModeLoadParameter.updateParameter.updateValueFormat.equals(updateValueFormat));
         assertTrue(batchModeLoadParameter.updateParameter.updateValuesFilePath.equals(updateValuesFilePath));
+        assertTrue(batchModeLoadParameter.dataInfo.dataFilePath.equals("datafilepath"));
+        assertTrue(batchModeLoadParameter.dataInfo.metaFilePath.equals("metafilepath"));
+        assertTrue(batchModeLoadParameter.dataInfo.keyFieldName.equals("keyfieldname"));
+        assertTrue(batchModeLoadParameter.dataInfo.docsToLoad == 1);
+        assertTrue(batchModeLoadParameter.targetInfo.host.equals("host"));
+        assertTrue(batchModeLoadParameter.targetInfo.bucket.equals("bucket"));
+        assertTrue(batchModeLoadParameter.targetInfo.username.equals("username"));
+        assertTrue(batchModeLoadParameter.targetInfo.password.equals("password"));
+        assertTrue(batchModeLoadParameter.targetInfo.cbashost.equals("cbashost"));
     }
 
     public void testBatchModeLoadParameters() {
         DataInfo dataInfo = new DataInfo("datafilepath", "metafilepath",  "keyfieldname", 1);
-        TargetInfo targetInfo = new TargetInfo("host", "bucket", "username", "password");
+        TargetInfo targetInfo = new TargetInfo("host", "bucket", "username", "password", "cbashost");
         Date date = new Date((new Date()).getTime() / 1000 * 1000);
         BatchModeUpdateParameter updateParameter1 = new BatchModeUpdateParameter("updatefieldname", "integer",
                 "1", "2");
@@ -317,9 +327,9 @@ public class LoaderTest
     }
 
     // Env specific test, disabled by default remove "_" in method to enable
-    public void _testLoadTarget()
+    public void testLoadTarget()
     {
-        TargetInfo targetinfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password");
+        TargetInfo targetinfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password", "172.23.98.30");
         LoadTarget target = new LoadTarget(targetinfo);
         String key = "1";
         String docJson = "{\"id\" : \"1\", \"updatefieldname\" : \"2000-01-02\", \"field2\" : \"abcd\"}";
@@ -330,8 +340,8 @@ public class LoaderTest
     }
 
     // Env specific test, disabled by default remove "_" in method to enable
-    public void _testLoadTargetRetry() {
-        TargetInfo targetinfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password");
+    public void testLoadTargetRetry() {
+        TargetInfo targetinfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password", "172.23.98.30");
         String key = "1";
         String docJson = "{\"id\" : \"1\", \"updatefieldname\" : \"2000-01-02\", \"field2\" : \"abcd\"}";
         JsonDocument doc = JsonDocument.create(key, JsonObject.fromJson(docJson));
@@ -500,13 +510,13 @@ public class LoaderTest
     }
 
     // Env specific test, disabled by default remove "_" in method to enable
-    public void _testLoader() {
+    public void testLoader() {
         int updateNum = 10;
         int deleteNum = 11;
         int insertNum = 12;
         int ttlNum = 13;
         DataInfo dataInfo = new DataInfo("data.json", "data.meta", "id", 10);
-        TargetInfo targetInfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password");
+        TargetInfo targetInfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password", "172.23.98.30");
         LoadParameterTest loadParam = new LoadParameterTest(dataInfo, targetInfo, updateNum, deleteNum, insertNum, ttlNum);
         LoadTargetTest loadTarget = new LoadTargetTest(targetInfo);
         LoaderTestClass loader = new LoaderTestClass(loadParam, loadTarget);
@@ -558,7 +568,7 @@ public class LoaderTest
     }
 
     // Env specific test, disabled by default remove "_" in method to enable
-    public void _testBatchModeLoader() {
+    public void testBatchModeLoader() {
         String dataFile = "data.json";
         String metaFile = "data.meta";
         String docContents[] = initializeJsonDocs(20);
@@ -568,7 +578,7 @@ public class LoaderTest
         String contentsMeta[] = {String.format("IDRange=1:%d", docContents.length)};
         createFileWithContents(metaFile, contentsMeta);
 
-        TargetInfo targetInfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password");
+        TargetInfo targetInfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password", "172.23.98.30");
 
         BatchModeUpdateParameter batchModeUpdateParameters[] = initializeUpdateParameters();
         BatchModeTTLParameter batchModeTTLParameter = new BatchModeTTLParameter(1, 10);
@@ -690,7 +700,7 @@ public class LoaderTest
     }
 
     // Env specific test, disabled by default remove "_" in method to enable
-    public void _testMixModeLoader() {
+    public void testMixModeLoader() {
         String dataFile = "data.json";
         String metaFile = "data.meta";
         String docContents[] = initializeJsonDocs(200);
@@ -702,7 +712,7 @@ public class LoaderTest
 
         long extraIdStart = 10000;
 
-        TargetInfo targetInfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password");
+        TargetInfo targetInfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password", "172.23.98.30");
         {
             BatchModeUpdateParameter batchModeUpdateParameter = new BatchModeUpdateParameter("intfield", "integer", "1", "2");
             BatchModeTTLParameter batchModeTTLParameter = new BatchModeTTLParameter(1, 10);

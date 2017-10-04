@@ -4,9 +4,9 @@ public class DataInfo {
     public String dataFilePath;
     public String metaFilePath;
     public String keyFieldName;
-    public int docsToLoad;
+    public long docsToLoad;
 
-    public DataInfo(String dataFilePath, String metaFilePath, String keyFieldName, int docsToLoad){
+    public DataInfo(String dataFilePath, String metaFilePath, String keyFieldName, long docsToLoad){
         this.dataFilePath = dataFilePath;
         this.metaFilePath = metaFilePath;
         this.keyFieldName = keyFieldName;

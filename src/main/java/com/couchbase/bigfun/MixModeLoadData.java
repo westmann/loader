@@ -150,7 +150,7 @@ public class MixModeLoadData extends LoadData {
         }
 
         try {
-            this.templateDocuments = new JsonDocument[dataInfo.docsToLoad];
+            this.templateDocuments = new JsonDocument[(int)dataInfo.docsToLoad];
             BufferedReader br = new BufferedReader(new FileReader(this.dataInfo.dataFilePath));
             for (int i = 0; i < this.dataInfo.docsToLoad; i++) {
                 String line = br.readLine();

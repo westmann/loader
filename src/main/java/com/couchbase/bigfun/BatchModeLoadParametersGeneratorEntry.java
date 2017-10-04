@@ -18,10 +18,10 @@ public class BatchModeLoadParametersGeneratorEntry extends LoadParametersGenerat
         System.out.println("Options:");
         super.PrintOptionsUsage();
         System.out.println("-o <operation>");
-        System.out.println("-t <ttlstart>:<ttlend>");
-        System.out.println("-U <fieldname>:<fieldtype>:<valuestart>:<valueend>");
-        System.out.println("-U <fieldname>:<fieldtype>:<valueformat><valuestart>:<valueend>");
-        System.out.println("-U <fieldname>:<fieldtype>:<valuesfile>");
+        System.out.println("-t <ttlstart>#<ttlend>");
+        System.out.println("-U <fieldname>#<fieldtype>#<valuestart>#<valueend>");
+        System.out.println("-U <fieldname>#<fieldtype>#<valueformat>#<valuestart>#<valueend>");
+        System.out.println("-U <fieldname>#<fieldtype>#<valuesfile>");
         System.exit(1);
     }
 

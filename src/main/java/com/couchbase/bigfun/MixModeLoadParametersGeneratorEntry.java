@@ -16,7 +16,7 @@ public class MixModeLoadParametersGeneratorEntry extends LoadParametersGenerator
         System.out.println("MixModeLoadParametersGeneratorEntry [Option]+");
         System.out.println("Options:");
         super.PrintOptionsUsage();
-        System.out.println("-t <ttlstart>:<ttlend>");
+        System.out.println("-t <ttlstart>#<ttlend>");
         System.out.println("-iv <intervalms>");
         System.out.println("-du <durationsec>");
         System.out.println("-st <starttime>");

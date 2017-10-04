@@ -4,7 +4,7 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.Arrays;
 import java.util.HashMap;
 
 public abstract class LoadParametersGenerator {
@@ -130,6 +130,7 @@ public abstract class LoadParametersGenerator {
                 return new File(current, name).isDirectory();
             }
         });
+        Arrays.sort(directories);
         for (int i = 0; i < directories.length; i ++)
         {
             directories[i] = new File(file, directories[i]).getAbsolutePath();

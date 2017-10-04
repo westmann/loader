@@ -87,6 +87,26 @@ public class MixModeLoadParametersGeneratorEntry extends LoadParametersGenerator
         return;
     }
 
+    private MixModeTTLParameter getTTLParameter() {
+        return new MixModeTTLParameter((int) arguments.get("ttlStart"), (int) arguments.get("ttlEnd"));
+    }
+
+    private MixModeDeleteParameter getDeleteParameter() {
+        return new MixModeDeleteParameter((long) arguments.get("maxDeleteDocs"));
+    }
+
+    private MixModeInsertParameter getInsertParameter() {
+        return new MixModeInsertParameter((long) arguments.get("insertIdStart"));
+    }
+
+    private Date getStartTime() {
+        Date startTime = new Date();
+        if (arguments.containsKey("startTime")) {
+            startTime = (Date) arguments.get("startTime");
+        }
+        return startTime;
+    }
+
     @Override
     public void run() {
         try {
@@ -99,31 +119,19 @@ public class MixModeLoadParametersGeneratorEntry extends LoadParametersGenerator
             Usage();
         }
 
-        String allPartitions[] = getAllSubFolders((String) arguments.get("partitionPath"));
-        TargetInfo targetInfo = new TargetInfo((String) arguments.get("host"), (String) arguments.get("bucket"),
-                (String) arguments.get("user"), (String) arguments.get("pwd"));
-        MixModeTTLParameter ttlParameter = new MixModeTTLParameter((int) arguments.get("ttlStart"), (int) arguments.get("ttlEnd"));
-        MixModeDeleteParameter deleteParameter = new MixModeDeleteParameter((long)arguments.get("maxDeleteDocs"));
-        MixModeInsertParameter insertParameter = new MixModeInsertParameter((long)arguments.get("insertIdStart"));
-        Date startTime = new Date();
-        if (arguments.containsKey("startTime")) {
-            startTime = (Date)arguments.get("startTime");
-        }
+        TargetInfo targetInfo = getTargetInfo();
+        DataInfo partitionDataInfos[] = getAllPartitionDataInfos();
+        MixModeTTLParameter ttlParameter = getTTLParameter();
+        MixModeDeleteParameter deleteParameter = getDeleteParameter();
+        MixModeInsertParameter insertParameter = getInsertParameter();
+        Date startTime = getStartTime();
         MixModeLoadParameters mixModeLoadParameters = new MixModeLoadParameters();
-        for (int i = 0; i < allPartitions.length; i++) {
-            File dataFile = new File(allPartitions[i], (String) arguments.get("dataFile") + ".json");
-            File metaFile = new File(allPartitions[i], (String) arguments.get("dataFile") + ".meta");
-            if (!dataFile.exists() || !dataFile.isFile())
-                throw new IllegalArgumentException("Invalid partition data file " + dataFile.getAbsolutePath());
-            if (!metaFile.exists() || !metaFile.isFile())
-                throw new IllegalArgumentException("Invalid partition meta file " + metaFile.getAbsolutePath());
-            DataInfo dataInfo = new DataInfo(dataFile.getAbsolutePath(), metaFile.getAbsolutePath(),
-                    (String) arguments.get("keyField"), (long) arguments.get("docToLoad"));
+        for (int i = 0; i < partitionDataInfos.length; i++) {
             MixModeLoadParameter mixModeLoadParameter = new MixModeLoadParameter(
-                    (int)arguments.get("intervalMS"), (int)arguments.get("durationSeconds"),
-                    startTime, (int)arguments.get("insertPropotion"), (int)arguments.get("updatePropotion"),
+                    (int)arguments.get("intervalMS"), (int)arguments.get("durationSeconds"), startTime,
+                    (int)arguments.get("insertPropotion"), (int)arguments.get("updatePropotion"),
                     (int)arguments.get("deletePropotion"), (int)arguments.get("ttlPropotion"),
-                    dataInfo, targetInfo, insertParameter, deleteParameter, ttlParameter);
+                    partitionDataInfos[i], targetInfo, insertParameter, deleteParameter, ttlParameter);
             mixModeLoadParameters.loadParameters.add(mixModeLoadParameter);
         }
         Gson gson = new GsonBuilder().setPrettyPrinting().create();

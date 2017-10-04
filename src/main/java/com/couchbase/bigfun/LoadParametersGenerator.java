@@ -100,7 +100,28 @@ public abstract class LoadParametersGenerator {
         return;
     }
 
-    protected static String[] getAllSubFolders(String partitionPath)
+    protected DataInfo[] getAllPartitionDataInfos() {
+        String allPartitions[] = getAllSubFolders((String) arguments.get("partitionPath"));
+        DataInfo dataInfos[] = new DataInfo[allPartitions.length];
+        for (int i = 0; i < allPartitions.length; i++) {
+            File dataFile = new File(allPartitions[i], (String) arguments.get("dataFile") + ".json");
+            File metaFile = new File(allPartitions[i], (String) arguments.get("dataFile") + ".meta");
+            if (!dataFile.exists() || !dataFile.isFile())
+                throw new IllegalArgumentException("Invalid partition data file " + dataFile.getAbsolutePath());
+            if (!metaFile.exists() || !metaFile.isFile())
+                throw new IllegalArgumentException("Invalid partition meta file " + metaFile.getAbsolutePath());
+            dataInfos[i] = new DataInfo(dataFile.getAbsolutePath(), metaFile.getAbsolutePath(),
+                    (String) arguments.get("keyField"), (long) arguments.get("docToLoad"));
+        }
+        return dataInfos;
+    }
+
+    protected TargetInfo getTargetInfo() {
+        return new TargetInfo((String) arguments.get("host"), (String) arguments.get("bucket"),
+                (String) arguments.get("user"), (String) arguments.get("pwd"));
+    }
+
+    private static String[] getAllSubFolders(String partitionPath)
     {
         File file = new File(partitionPath);
         String[] directories = file.list(new FilenameFilter() {

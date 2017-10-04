@@ -88,6 +88,25 @@ public class BatchModeLoadParametersGeneratorEntry extends LoadParametersGenerat
         return;
     }
 
+    private BatchModeTTLParameter getTTLParameter() {
+        return new BatchModeTTLParameter((int) arguments.get("ttlStart"), (int) arguments.get("ttlEnd"));
+    }
+
+    private BatchModeUpdateParameter getUpdateParameter() {
+        BatchModeUpdateParameter updateParameter = null;
+        if (arguments.containsKey("valueFormat")) {
+            updateParameter = new BatchModeUpdateParameter((String) arguments.get("fieldName"), (String) arguments.get("fieldType"),
+                    (String) arguments.get("valueFormat"), (String) arguments.get("valueStart"), (String) arguments.get("valueEnd"));
+        } else if (arguments.containsKey("valuesFile")) {
+            updateParameter = new BatchModeUpdateParameter((String) arguments.get("fieldName"), (String) arguments.get("fieldType"),
+                    (String) arguments.get("valuesFile"));
+        } else {
+            updateParameter = new BatchModeUpdateParameter((String) arguments.get("fieldName"), (String) arguments.get("fieldType"),
+                    (String) arguments.get("valueStart"), (String) arguments.get("valueEnd"));
+        }
+        return updateParameter;
+    }
+
     @Override
     public void run() {
         try {
@@ -100,32 +119,14 @@ public class BatchModeLoadParametersGeneratorEntry extends LoadParametersGenerat
             Usage();
         }
 
-        String allPartitions[] = getAllSubFolders((String) arguments.get("partitionPath"));
-        TargetInfo targetInfo = new TargetInfo((String) arguments.get("host"), (String) arguments.get("bucket"),
-                (String) arguments.get("user"), (String) arguments.get("pwd"));
-        BatchModeTTLParameter ttlParameter = new BatchModeTTLParameter((int) arguments.get("ttlStart"), (int) arguments.get("ttlEnd"));
-        BatchModeUpdateParameter updateParameter = null;
-        if (arguments.containsKey("valueFormat")) {
-            updateParameter = new BatchModeUpdateParameter((String) arguments.get("fieldName"), (String) arguments.get("fieldType"),
-                    (String) arguments.get("valueFormat"), (String) arguments.get("valueStart"), (String) arguments.get("valueEnd"));
-        } else if (arguments.containsKey("valuesFile")) {
-            updateParameter = new BatchModeUpdateParameter((String) arguments.get("fieldName"), (String) arguments.get("fieldType"),
-                    (String) arguments.get("valuesFile"));
-        } else {
-            updateParameter = new BatchModeUpdateParameter((String) arguments.get("fieldName"), (String) arguments.get("fieldType"),
-                    (String) arguments.get("valueStart"), (String) arguments.get("valueEnd"));
-        }
+        DataInfo allPartitionDataInfos[] = getAllPartitionDataInfos();
+        TargetInfo targetInfo = getTargetInfo();
+        BatchModeUpdateParameter updateParameter = getUpdateParameter();
+        BatchModeTTLParameter ttlParameter = getTTLParameter();
         BatchModeLoadParameters batchModeLoadParameters = new BatchModeLoadParameters();
-        for (int i = 0; i < allPartitions.length; i++) {
-            File dataFile = new File(allPartitions[i], (String) arguments.get("dataFile") + ".json");
-            File metaFile = new File(allPartitions[i], (String) arguments.get("dataFile") + ".meta");
-            if (!dataFile.exists() || !dataFile.isFile())
-                throw new IllegalArgumentException("Invalid partition data file " + dataFile.getAbsolutePath());
-            if (!metaFile.exists() || !metaFile.isFile())
-                throw new IllegalArgumentException("Invalid partition meta file " + metaFile.getAbsolutePath());
-            DataInfo dataInfo = new DataInfo(dataFile.getAbsolutePath(), metaFile.getAbsolutePath(),
-                    (String) arguments.get("keyField"), (long) arguments.get("docToLoad"));
-            BatchModeLoadParameter batchModeLoadParameter = new BatchModeLoadParameter(dataInfo, targetInfo,
+        for (int i = 0; i < allPartitionDataInfos.length; i++) {
+            BatchModeLoadParameter batchModeLoadParameter = new BatchModeLoadParameter(
+                    allPartitionDataInfos[i], targetInfo,
                     (String) arguments.get("operation"), updateParameter, ttlParameter);
             batchModeLoadParameters.loadParameters.add(batchModeLoadParameter);
         }

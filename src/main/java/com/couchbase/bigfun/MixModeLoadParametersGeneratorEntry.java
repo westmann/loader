@@ -82,7 +82,7 @@ public class MixModeLoadParametersGeneratorEntry extends LoadParametersGenerator
     }
 
     public static void main(String[] args) {
-        BatchModeLoadParametersGeneratorEntry entry = new BatchModeLoadParametersGeneratorEntry(args);
+        MixModeLoadParametersGeneratorEntry entry = new MixModeLoadParametersGeneratorEntry(args);
         entry.run();
         return;
     }

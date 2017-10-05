@@ -1,280 +1,221 @@
-/**
- * Copyright 2016 Couchbase Inc.
- */
 package com.couchbase.bigfun;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import com.couchbase.client.java.Bucket;
-import com.couchbase.client.java.Cluster;
-import com.couchbase.client.java.CouchbaseCluster;
-import com.couchbase.client.java.PersistTo;
-import com.couchbase.client.java.bucket.BucketType;
-import com.couchbase.client.java.cluster.BucketSettings;
-import com.couchbase.client.java.cluster.ClusterManager;
 import com.couchbase.client.java.document.JsonDocument;
-import com.couchbase.client.java.document.json.JsonObject;
-import com.couchbase.client.java.env.CouchbaseEnvironment;
-import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
-import com.couchbase.client.java.error.TemporaryFailureException;
 
-public class Loader {
+import java.lang.*;
+import java.util.Date;
 
-    static int RECORDS_PER_DOT = 1000;
-    static int DOTS_PER_LINE = 80;
+public class Loader<PARAMT, DATAT> extends Thread {
 
-    static Set<String> ID_NAMES = new HashSet<>();
+        public static final String INSERT_OPERATION = "insert";
+        public static final String DELETE_OPERATION = "delete";
+        public static final String UPDATE_OPERATION = "update";
+        public static final String TTL_OPERATION = "ttl";
+        public static final String QUERY_OPERATION = "query";
 
-    CouchbaseEnvironment env;
-    String host = "localhost";
-    String bucketname = "default";
-    boolean verbose = false;
-    String username = null;
-    String password = null;
-    long timeout;
+        private LoadData data;
 
-    Loader(String host, String bucketname, String username, String password, boolean verbose) {
-        env = DefaultCouchbaseEnvironment.create();
-        this.host = host;
-        this.bucketname = bucketname;
-        this.verbose = verbose;
-        this.username = username;
-        this.password = password;
-        timeout = env.kvTimeout();
-    }
+        private LoadParameter parameter;
 
-    void load(String filename, long limit, boolean flushBeforeLoad) throws IOException, InterruptedException {
-        final File file = new File(filename);
-        if (!file.exists()) {
-            throw new FileNotFoundException(file.getAbsolutePath());
+        private LoadTarget target;
+
+        public LoadStats successStats;
+
+        public LoadStats failedStats;
+
+        public long duration;
+
+        protected DATAT getData() {
+            return (DATAT)data;
         }
-        Cluster cluster = CouchbaseCluster.create(env, host);
 
-        if (username != null && password != null) {
-            createBucket(cluster);
+        protected PARAMT getParameter() {
+            return (PARAMT)parameter;
         }
-        try {
-            Bucket bucket = password != null ? cluster.openBucket(bucketname, password)
-                    : cluster.openBucket(bucketname);
-            if (flushBeforeLoad && !bucket.bucketManager().flush()) {
-                throw new IOException("Could not flush " + bucketname);
+
+        /*
+        To be override
+         */
+        protected void load() {
+            while (true) {
+                try {
+                    if (!operate(INSERT_OPERATION))
+                        break;
+                }
+                catch (Exception e) {
+                    System.err.println(e.toString());
+                    continue;
+                }
             }
-            parse(file, limit, bucket);
-            if (!bucket.close()) {
-                throw new IOException("Could not close " + bucketname);
-            }
-        } finally {
-            cluster.disconnect();
+            return;
         }
-    }
 
-    private void createBucket(Cluster cluster) {
-        ClusterManager cm;
-        try {
-            cm = cluster.clusterManager(username, password);
-        } catch (RuntimeException | Error e) {
-            throw new RuntimeException("could not access cluster manager", e);
+        public void run() {
+            Date start = new Date();
+            load();
+            Date end = new Date();
+            this.duration = end.getTime() - start.getTime();
+            this.target.close();
+            this.data.close();
         }
-        int quotaMB = 200;
-        if (!cm.hasBucket(bucketname)) {
-            try {
-                cm.insertBucket(new BucketSettings() {
-                    @Override
-                    public String name() {
-                        return bucketname;
-                    }
 
-                    @Override
-                    public BucketType type() {
-                        return BucketType.COUCHBASE;
-                    }
-
-                    @Override
-                    public int quota() {
-                        return quotaMB;
-                    }
-
-                    @Override
-                    public int port() {
-                        return 0;
-                    }
-
-                    @Override
-                    public String password() {
-                        return password;
-                    }
-
-                    @Override
-                    public int replicas() {
-                        return 0;
-                    }
-
-                    @Override
-                    public boolean indexReplicas() {
-                        return false;
-                    }
-
-                    @Override
-                    public boolean enableFlush() {
-                        return true;
-                    }
-                });
-            } catch (RuntimeException | Error e) {
-                throw new RuntimeException("could not create bucket " + bucketname, e);
-            }
-        }
-    }
-
-    void parse(File file, long limit, Bucket bucket) throws IOException, InterruptedException {
-        System.out.println("+++ load start +++");
-        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            long count = 0;
-            for (String line; (line = br.readLine()) != null;) {
-                if (++count > limit) {
+        protected boolean operate(String operation) {
+            boolean result;
+            switch (operation) {
+                case INSERT_OPERATION:
+                    result = this.insert();
                     break;
-                }
-                JsonObject obj = JsonObject.fromJson(line);
-                boolean upserted = false;
-                for (String idName : ID_NAMES) {
-                    if (!upserted && obj.containsKey(idName)) {
-                        String id = String.valueOf(obj.get(idName));
-                        JsonDocument doc = JsonDocument.create(id, obj);
-                        while (!upserted) {
-                            upserted = upsert(bucket, doc);
-                        }
-                        if (verbose) {
-                            System.out.println("Upserted " + doc);
-                        } else {
-                            progress(count, '.');
-                        }
-                    }
-                }
-                if (!upserted) {
-                    if (verbose) {
-                        System.out.println("No key found in " + obj);
-                    } else {
-                        progress(count, '-');
-                    }
-                }
+                case DELETE_OPERATION:
+                    result = this.delete();
+                    break;
+                case UPDATE_OPERATION:
+                    result = this.update();
+                    break;
+                case TTL_OPERATION:
+                    result = this.ttl();
+                    break;
+                case QUERY_OPERATION:
+                    result = this.query();
+                    break;
+                default:
+                    result = false;
+                    break;
             }
-            System.out.println();
-        } finally {
-            System.out.println("+++ load end +++");
+            return result;
         }
-    }
 
-    private boolean upsert(Bucket bucket, JsonDocument doc) throws InterruptedException {
-        try {
-            bucket.upsert(doc, PersistTo.MASTER, timeout, TimeUnit.MILLISECONDS);
-            return true;
-        } catch (RuntimeException e) {
-            if (e instanceof TemporaryFailureException || e.getCause() instanceof TimeoutException) {
-                System.out.println();
-                System.out.println("+++ caught " + e.toString() + " +++");
-                Thread.sleep(timeout);
-                timeout *= 2;
-                System.out.println("+++ new timeout " + timeout + " +++");
-            } else {
+        private boolean query() {
+            boolean result;
+            Date start = new Date();
+            try {
+                String query = data.GetNextQuery();
+                if (query != null) {
+                    this.target.cbasQuery(query);
+                    Date end = new Date();
+                    this.successStats.queryNumber++;
+                    this.successStats.queryLatency += end.getTime() - start.getTime();
+                    result = true;
+                }
+                else
+                    result = false;
+            }
+            catch (Exception e) {
+                Date end = new Date();
+                this.failedStats.queryNumber++;
+                this.failedStats.queryLatency += end.getTime() - start.getTime();
                 throw e;
             }
+            return result;
         }
-        return false;
-    }
 
-    private void progress(long count, char c) {
-        if (count % RECORDS_PER_DOT == 0) {
-            System.out.print(c);
-            if (count % (RECORDS_PER_DOT * DOTS_PER_LINE) == 0) {
-                System.out.println();
+        private boolean ttl() {
+            boolean result;
+            Date start = new Date();
+            try {
+                JsonDocument doc = data.GetNextDocumentForTTL();
+                if (doc != null) {
+                    this.target.upsert(doc);
+                    Date end = new Date();
+                    this.successStats.ttlNumber++;
+                    this.successStats.ttlLatency += end.getTime() - start.getTime();
+                    result = true;
+                } else
+                    result = false;
+            } catch (Exception e) {
+                Date end = new Date();
+                this.failedStats.ttlNumber++;
+                this.failedStats.ttlLatency += end.getTime() - start.getTime();
+                throw e;
             }
-        }
-    }
-
-    private static void usage(String msg) {
-        String usage = msg + "\nParameters: [options] <filename>\n" + "Options:\n"
-                + "  -l <num>        (limit - number of records to load)\n"
-                + "  -b <bucketname> (default: \"default\")\n" + "  -f              (flush bucket before loading)\n"
-                + "  -h <host>       (default: \"localhost\")\n"
-                + "  -k <fieldname>  (key field, can occur more than once, first match is chosen)\n"
-                + "  -u <username>   (admin user)\n" + "  -p <password>   (admin password)\n"
-                + "  -v              verbose\n";
-        System.err.println(usage);
-        System.exit(1);
-    }
-
-    public static void main(String[] args) throws IOException, InterruptedException {
-        if (args.length == 0) {
-            usage("no arguments");
+            return result;
         }
 
-        long limit = Long.MAX_VALUE;
-        String bucket = "default";
-        String host = "localhost";
-        String filename = "";
-        boolean flushBeforeLoad = false;
-        boolean verbose = false;
-        String username = null;
-        String password = null;
-
-        int i = 0;
-        while (i < args.length) {
-            String arg = args[i];
-            if (arg.startsWith("-")) {
-                if (i + 1 >= args.length) {
-                    usage("missing value for option " + arg);
+        private boolean insert() {
+            boolean result;
+            Date start = new Date();
+            try {
+                JsonDocument doc = data.GetNextDocumentForInsert();
+                if (doc != null) {
+                    this.target.upsert(doc);
+                    Date end = new Date();
+                    this.successStats.insertNumber++;
+                    this.successStats.insertLatency += end.getTime() - start.getTime();
+                    result = true;
                 }
-                switch (arg) {
-                    case "-l":
-                        limit = Long.valueOf(args[++i]);
-                        break;
-                    case "-b":
-                        bucket = args[++i];
-                        break;
-                    case "-h":
-                        host = args[++i];
-                        break;
-                    case "-k":
-                        ID_NAMES.add(args[++i]);
-                        break;
-                    case "-f":
-                        flushBeforeLoad = true;
-                        break;
-                    case "-v":
-                        verbose = true;
-                        break;
-                    case "-u":
-                        username = args[++i];
-                        break;
-                    case "-p":
-                        password = args[++i];
-                        break;
-                    default:
-                        usage("unknown option " + arg);
-                }
-            } else {
-                if (!filename.equals("")) {
-                    usage("more than 1 filename given");
-                }
-                filename = arg;
+                else
+                    result = false;
             }
-            ++i;
-        }
-        if (ID_NAMES.isEmpty()) {
-            usage("need at least 1 key field");
-        }
-        if (filename.equals("")) {
-            usage("no filename given");
+            catch (Exception e) {
+                Date end = new Date();
+                this.failedStats.insertNumber++;
+                this.failedStats.insertLatency += end.getTime() - start.getTime();
+                throw e;
+            }
+            return result;
         }
 
-        Loader loader = new Loader(host, bucket, username, password, verbose);
-        loader.load(filename, limit, flushBeforeLoad);
+        private boolean delete() {
+            boolean result;
+            Date start = new Date();
+            try {
+                JsonDocument doc = data.GetNextDocumentForDelete();
+                if (doc != null) {
+                    this.target.delete(doc);
+                    Date end = new Date();
+                    this.successStats.deleteNumber++;
+                    this.successStats.deleteLatency += end.getTime() - start.getTime();
+                    result = true;
+                }
+                else
+                    result = false;
+            }
+            catch (Exception e) {
+                Date end = new Date();
+                this.failedStats.deleteNumber++;
+                this.failedStats.deleteLatency += end.getTime() - start.getTime();
+                throw e;
+            }
+            return result;
+        }
+
+        private boolean update() {
+            boolean result;
+            Date start = new Date();
+            try {
+                JsonDocument doc = data.GetNextDocumentForUpdate();
+                if (doc != null) {
+                    this.target.upsert(doc);
+                    Date end = new Date();
+                    this.successStats.updateNumber++;
+                    this.successStats.updateLatency += end.getTime() - start.getTime();
+                    result = true;
+                }
+                else
+                    result = false;
+            }
+            catch (Exception e) {
+                Date end = new Date();
+                this.failedStats.updateNumber++;
+                this.failedStats.updateLatency += end.getTime() - start.getTime();
+                throw e;
+            }
+            return result;
+        }
+
+        protected Loader(LoadParameter parameter, LoadData data, LoadTarget loadTarget) {
+            super();
+            this.parameter = parameter;
+            this.data = data;
+            if (loadTarget == null)
+                this.target = new LoadTarget(this.parameter.targetInfo);
+            else
+                this.target = loadTarget;
+            this.successStats = new LoadStats();
+            this.failedStats = new LoadStats();
+        }
+
+        public Loader(LoadParameter parameter, LoadData data) {
+            this(parameter, data, null);
+        }
     }
-}
+

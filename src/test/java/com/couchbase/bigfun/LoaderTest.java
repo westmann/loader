@@ -327,7 +327,7 @@ public class LoaderTest
     }
 
     // Env specific test, disabled by default remove "_" in method to enable
-    public void testLoadTarget()
+    public void _testLoadTarget()
     {
         TargetInfo targetinfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password", "172.23.98.30");
         LoadTarget target = new LoadTarget(targetinfo);
@@ -373,7 +373,7 @@ public class LoaderTest
     }
 
     // Env specific test, disabled by default remove "_" in method to enable
-    public void testLoadTargetRetry() {
+    public void _testLoadTargetRetry() {
         TargetInfo targetinfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password", "172.23.98.30");
         String key = "1";
         String docJson = "{\"id\" : \"1\", \"updatefieldname\" : \"2000-01-02\", \"field2\" : \"abcd\"}";

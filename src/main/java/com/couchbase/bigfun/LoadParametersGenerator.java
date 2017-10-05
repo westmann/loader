@@ -2,10 +2,15 @@ package com.couchbase.bigfun;
 
 import java.io.File;
 import java.io.FilenameFilter;
+import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
 
 public abstract class LoadParametersGenerator {
 
@@ -28,6 +33,7 @@ public abstract class LoadParametersGenerator {
         System.out.println("-p <password>");
         System.out.println("-b <bucket>");
         System.out.println("-ah <cbashost>");
+        System.out.println("-qf <queryfile>");
     }
 
     protected void parseArguments() {
@@ -69,6 +75,9 @@ public abstract class LoadParametersGenerator {
                     case "-ah":
                         arguments.put("cbasHost", args[++i]);
                         break;
+                    case "-qf":
+                        arguments.put("queryFile", args[++i]);
+                        break;
                 }
             }
             ++i;
@@ -102,6 +111,23 @@ public abstract class LoadParametersGenerator {
             throw new IllegalArgumentException("Invalid time argument " + arg, e);
         }
         return;
+    }
+
+    protected QueryInfo getQueryInfo() {
+        QueryInfo queryInfo = new QueryInfo();
+        if (arguments.containsKey("queryFile")) {
+            try {
+                String filename = (String) arguments.get("queryFile");
+                List<String> querylist = Files.readAllLines(Paths.get(filename), Charset.defaultCharset());
+                for (String query : querylist) {
+                    queryInfo.queries.add(query);
+                }
+            }
+            catch (IOException e) {
+                throw new IllegalArgumentException("IOException when reading query file", e);
+            }
+        }
+        return queryInfo;
     }
 
     protected DataInfo[] getAllPartitionDataInfos() {

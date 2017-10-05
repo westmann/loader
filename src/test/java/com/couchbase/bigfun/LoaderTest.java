@@ -336,14 +336,39 @@ public class LoaderTest
         JsonDocument doc = JsonDocument.create(key, JsonObject.fromJson(docJson));
         target.upsert(doc);
         target.delete(doc);
-        JsonObject o = target.cbasQuery("select count(*) from GleambookMessages;");
+        LoadTarget.CBASQueryResult o = target.cbasQuery("select count(*) from GleambookMessages;");
         assertTrue(o != null);
-        assertTrue(((String)o.get("status")).equals("success"));
-        assertTrue(((int)((JsonObject)o.get("metrics")).get("resultCount")) == 1);
-        o = target.cbasQuery("select count(*) from GleambookMessages;");
-        assertTrue(o != null);
-        assertTrue(((String)o.get("status")).equals("success"));
-        assertTrue(((int)((JsonObject)o.get("metrics")).get("resultCount")) == 1);
+        assertTrue(o.status.equals("success"));
+        assertTrue(o.metrics.resultCount == 1);
+        try {
+            o = target.cbasQuery("select count(*) from GleambookMessage");
+            assertTrue(false);
+        }
+        catch (RuntimeException e) {
+            assertTrue(true);
+        }
+        target.close();
+
+        // Target with invalid IP for couchbase and cbas
+        targetinfo = new TargetInfo("172.23.98.70", "bucket-1", "bucket-1", "password", "172.23.98.70");
+        try {
+            target = new LoadTarget(targetinfo);
+            assertTrue(false);
+        }
+        catch (Exception e)
+        {
+            assertTrue(true);
+        }
+
+        targetinfo = new TargetInfo("172.23.98.29", "bucket-1", "bucket-1", "password", "172.23.98.70");
+        target = new LoadTarget(targetinfo);
+        try {
+            o = target.cbasQuery("select count(*) from GleambookMessages;");
+            assertTrue(false);
+        }
+        catch (Exception e) {
+            assertTrue(true);
+        }
         target.close();
     }
 

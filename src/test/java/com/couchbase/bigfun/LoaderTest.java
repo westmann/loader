@@ -336,6 +336,14 @@ public class LoaderTest
         JsonDocument doc = JsonDocument.create(key, JsonObject.fromJson(docJson));
         target.upsert(doc);
         target.delete(doc);
+        JsonObject o = target.cbasQuery("select count(*) from GleambookMessages;");
+        assertTrue(o != null);
+        assertTrue(((String)o.get("status")).equals("success"));
+        assertTrue(((int)((JsonObject)o.get("metrics")).get("resultCount")) == 1);
+        o = target.cbasQuery("select count(*) from GleambookMessages;");
+        assertTrue(o != null);
+        assertTrue(((String)o.get("status")).equals("success"));
+        assertTrue(((int)((JsonObject)o.get("metrics")).get("resultCount")) == 1);
         target.close();
     }
 
@@ -510,7 +518,7 @@ public class LoaderTest
     }
 
     // Env specific test, disabled by default remove "_" in method to enable
-    public void testLoader() {
+    public void _testLoader() {
         int updateNum = 10;
         int deleteNum = 11;
         int insertNum = 12;
@@ -568,7 +576,7 @@ public class LoaderTest
     }
 
     // Env specific test, disabled by default remove "_" in method to enable
-    public void testBatchModeLoader() {
+    public void _testBatchModeLoader() {
         String dataFile = "data.json";
         String metaFile = "data.meta";
         String docContents[] = initializeJsonDocs(20);
@@ -700,7 +708,7 @@ public class LoaderTest
     }
 
     // Env specific test, disabled by default remove "_" in method to enable
-    public void testMixModeLoader() {
+    public void _testMixModeLoader() {
         String dataFile = "data.json";
         String metaFile = "data.meta";
         String docContents[] = initializeJsonDocs(200);
